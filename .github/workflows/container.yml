@@ -8,7 +8,7 @@ on:
         type: string
         required: true
 
-      docker-file:
+      container-file:
         description: "Path to the Dockerfile"
         type: string
         default: "Dockerfile"
