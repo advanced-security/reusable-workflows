@@ -111,6 +111,11 @@ jobs:
     # Scan the image only if it is being published
     if: ${{ inputs.scanning == 'true' && inputs.publish == 'true' }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.sha }}
+
       # Scan the image for vulnerabilities
       - name: Run the Anchore Grype scan action
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
