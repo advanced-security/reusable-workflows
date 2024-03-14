@@ -67,7 +67,7 @@ secrets: inherit
 with:
   # This is used for tagging the container image.
   # It will automatically also set `latest` / `main` + major version `v1` tags.
-  semver: v1.0.0
+  version: v1.0.0
 ```
 
 **With Settings:**
@@ -77,9 +77,10 @@ uses: advanced-security/reusable-workflows/.github/workflows/container.yml@main
 secrets: inherit
 with:
   # This is used for tagging the container image
-  semver: v1.0.0
+  version: v1.0.0
   # Select the Dockerfile to use
   container-file: Dockerfile     # Defaults to `Dockerfile`
+  
 ```
 
 ### [Markdown - Linting][workflow-markdown-lint]
