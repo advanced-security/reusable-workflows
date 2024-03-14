@@ -57,6 +57,10 @@ permissions:
 jobs:
   build-publish-image:
     runs-on: ubuntu-latest
+
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,12 +90,13 @@ jobs:
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
+        id: build
         with:
           file: "${{ inputs.docker-file }}"
           context: .
           push: ${{ inputs.publish }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}XW
+          labels: ${{ steps.meta.outputs.labels }}
           # SBOM Settings
           sbom: true
 
