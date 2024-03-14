@@ -46,7 +46,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  SBOM_PATH: sbom.spdx.json
+  SBOM_PATH: sbom
 
 permissions:
   # to upload SBOM
@@ -93,7 +93,10 @@ jobs:
           push: ${{ inputs.publish }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}XW
-          sbom: ${{ env.SBOM_PATH }}
+          # SBOM Settings
+          sbom: true
+          outputs: |
+            type=local,dest=${{ env.SBOM_PATH }}
 
       # Upload Software Bill of Materials (SBOM) to GitHub
       - name: Upload SBOM
