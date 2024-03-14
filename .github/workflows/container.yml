@@ -94,7 +94,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}XW
           # SBOM Settings
           sbom: true
-          outputs: type=local,dest=sbom
 
       # Upload Software Bill of Materials (SBOM) to GitHub
       - name: Upload SBOM
