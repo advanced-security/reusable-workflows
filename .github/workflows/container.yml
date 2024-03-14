@@ -53,6 +53,8 @@ permissions:
   contents: write
   # to upload Docker image
   packages: write
+  # to scan the Docker image
+  security-events: write
 
 jobs:
   build-publish-image:
