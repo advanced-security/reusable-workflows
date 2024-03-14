@@ -94,6 +94,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}XW
           # SBOM Settings
           sbom: true
+          outputs: type=local,dest=sbom
 
       # Upload Software Bill of Materials (SBOM) to GitHub
       - name: Upload SBOM
@@ -115,7 +116,7 @@ jobs:
           fail-build: ${{ inputs.scanning-block }}
 
       - name: Upload vulnerability report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
 
