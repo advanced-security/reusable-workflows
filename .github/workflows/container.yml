@@ -46,7 +46,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  SBOM_PATH: sbom
 
 permissions:
   # to upload SBOM
@@ -95,15 +94,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}XW
           # SBOM Settings
           sbom: true
-          outputs: |
-            type=local,dest=${{ env.SBOM_PATH }}
 
       # Upload Software Bill of Materials (SBOM) to GitHub
       - name: Upload SBOM
         uses: advanced-security/spdx-dependency-submission-action@v0.0.1
         if: ${{ inputs.sbom == 'true' }}
-        with:
-          filePath: ${{ env.SBOM_PATH }}
 
   scanning:
     runs-on: ubuntu-latest
