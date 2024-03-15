@@ -84,9 +84,9 @@ jobs:
             # latest / main
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
             # SemVer 
-            type=semver,pattern={{version}},value=${{ inputs.semver }}
+            type=semver,pattern={{version}},value=${{ inputs.version }}
             # SemVer, major only
-            type=semver,pattern=v{{major}},value=${{ inputs.semver }}
+            type=semver,pattern=v{{major}},value=${{ inputs.version }}
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -128,7 +128,7 @@ jobs:
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         id: scan
         with:
-          image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest@${{ needs.build-publish-image.outputs.digest }}"
+          image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}@${{ needs.build-publish-image.outputs.digest }}"
           only-fixed: true
           fail-build: ${{ inputs.scanning-block }}
 
