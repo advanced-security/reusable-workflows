@@ -83,7 +83,7 @@ jobs:
           tags: |
             # latest / main
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-            # SemVer 
+            # SemVer
             type=semver,pattern={{version}},value=${{ inputs.version }}
             # SemVer, major only
             type=semver,pattern=v{{major}},value=${{ inputs.version }}
@@ -104,6 +104,9 @@ jobs:
       - name: Upload SBOM
         uses: advanced-security/spdx-dependency-submission-action@v0.0.1
         if: ${{ inputs.sbom == 'true' }}
+        with:
+          filePath: '.'
+          filePattern: '*.spdx.json'
 
   scanning:
     runs-on: ubuntu-latest
