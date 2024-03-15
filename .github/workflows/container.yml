@@ -124,6 +124,7 @@ jobs:
         id: scan
         with:
           image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-publish-image.outputs.digest }}"
+          only-fixed: true
           fail-build: ${{ inputs.scanning-block }}
 
       - name: Upload vulnerability report
