@@ -112,6 +112,7 @@ jobs:
     if: ${{ inputs.scanning == 'true' && inputs.publish == 'true' }}
 
     permissions:
+      contents: read
       # read the image from GitHub Container Registry
       packages: read
       # to scan the Docker image
