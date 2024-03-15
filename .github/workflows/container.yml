@@ -47,21 +47,19 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-permissions:
-  # to upload SBOM
-  id-token: write
-  contents: write
-  # to upload Docker image
-  packages: write
-  # to scan the Docker image
-  security-events: write
-
 jobs:
   build-publish-image:
     runs-on: ubuntu-latest
 
     outputs:
       digest: ${{ steps.build.outputs.digest }}
+
+    permissions:
+      # to upload SBOM
+      id-token: write
+      contents: write
+      # to upload Docker image
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -112,6 +110,13 @@ jobs:
     needs: build-publish-image
     # Scan the image only if it is being published
     if: ${{ inputs.scanning == 'true' && inputs.publish == 'true' }}
+
+    permissions:
+      # read the image from GitHub Container Registry
+      packages: read
+      # to scan the Docker image
+      security-events: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -137,6 +142,11 @@ jobs:
     needs: build-publish-image
     # Sign the image only if it is being published
     if: ${{ inputs.signing == 'true' && inputs.publish == 'true'  }}
+
+    permissions:
+      # read the image from GitHub Container Registry
+      packages: read
+
     steps:
       - uses: sigstore/cosign-installer@v3.3.0
         with:
