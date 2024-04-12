@@ -1,0 +1,88 @@
+name: "Actions Dist - Node"
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version"
+        required: true
+        type: string
+        default: "24.x"
+      dependabot-autodist:
+        description: "Whether to update the dist folder for dependabot commits"
+        type: string
+        default: "false"
+      dependabot-branch:
+        description: "The branch to push the dist folder to"
+        type: string
+        default: "main"
+
+jobs:
+  dist-check:
+    # Checks the dist folder for uncommitted changes in Pull Requests
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ github.event.inputs.node-version }}
+
+      - name: "Install and Build"
+        run: |
+          npm install
+          npm run bundle --if-present
+          npm run bundle-exe --if-present
+
+      - name: "Check for uncommitted changes"
+        id: diff
+        run: |
+          git diff --exit-code
+
+  dist-dependabot:
+    # Update the dist folder for dependabot commits in the specified branch
+    runs-on: ubuntu-latest
+    if: inputs.dependabot-autodist == 'true' && github.actor == 'dependabot[bot]' && github.event_name == 'push' && github.ref == 'refs/heads/${{ inputs.dependabot-branch }}'
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ github.event.inputs.node-version }}
+
+      - name: "Install and Build"
+        run: |
+          npm install
+          npm run bundle --if-present
+          npm run bundle-exe --if-present
+
+      - name: Check that build is clean
+        id: clean_build
+        continue-on-error: true
+        run: |
+          git diff --exit-code
+        
+      - name: Update release
+        if: steps.clean_build.outcome == 'failure'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add .
+          git commit -m "chore: Updating release files"
+          git push origin ${{ github.head_ref }}
