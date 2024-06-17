@@ -89,7 +89,7 @@ jobs:
             type=semver,pattern=v{{major}},value=${{ inputs.version }}
 
       - name: Build Docker image
-        uses: docker/build-push-action@v5.4.0
+        uses: docker/build-push-action@v6.0.0
         id: build
         with:
           file: "${{ inputs.docker-file }}"
@@ -102,7 +102,7 @@ jobs:
 
       # Upload Software Bill of Materials (SBOM) to GitHub
       - name: Upload SBOM
-        uses: advanced-security/spdx-dependency-submission-action@v0.1.0
+        uses: advanced-security/spdx-dependency-submission-action@v0.1.1
         if: ${{ inputs.sbom == 'true' }}
         with:
           filePath: '.'
