@@ -89,7 +89,7 @@ jobs:
             type=semver,pattern=v{{major}},value=${{ inputs.version }}
 
       - name: Build Docker image
-        uses: docker/build-push-action@v6.2.0
+        uses: docker/build-push-action@v6.4.0
         id: build
         with:
           file: "${{ inputs.docker-file }}"
@@ -134,7 +134,7 @@ jobs:
 
       # Scan the image for vulnerabilities
       - name: Run the Anchore Grype scan action
-        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
+        uses: anchore/scan-action@04b73ec0bba3de85519c4ec634bffedead788f96
         id: scan
         with:
           image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}@${{ needs.build-publish-image.outputs.digest }}"
