@@ -49,3 +49,4 @@ jobs:
           # Example: advanced-security/reusable-workflows/.github/dependency-review.yml@main
           config-file: ${{ steps.config.outputs.config }}
           comment-summary-in-pr: "always"
+          retry-on-snapshot-warnings: "true" #This will add a 120s delay on any repos without a snapshot
