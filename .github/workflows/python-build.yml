@@ -24,13 +24,18 @@ jobs:
   build:
     # This workflow runs on the latest version of Ubuntu
     runs-on: ubuntu-latest
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ matrix.python-version }}
+      cancel-in-progress: true
+    
     strategy:
       fail-fast: false
       matrix:
         # Python versions to test against
         # These are all the main versions of Python that are currently supported 
         # excluding 3.8
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout
