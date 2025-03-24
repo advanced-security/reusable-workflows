@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Patch Release Me"
         uses: 42ByteLabs/patch-release-me@f950db6bce09f2156a5f2d1cc86ac60ed1663a9e    # 0.5.3
