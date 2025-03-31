@@ -26,14 +26,14 @@ on:
 jobs:
   # Run the tests on all supported versions of Python
   testing:
-    uses: advanced-security/reusable-workflows/.github/workflows/python-testing.yml@v0.2.0
+    uses: advanced-security/reusable-workflows/.github/workflows/python-testing.yml@v0.3.0
     secrets: inherit
     with:
       versions: ${{ inputs.versions }}
 
   # Run linters on the codebase
   linting:
-    uses: advanced-security/reusable-workflows/.github/workflows/python-linting.yml@v0.2.0
+    uses: advanced-security/reusable-workflows/.github/workflows/python-linting.yml@v0.3.0
     needs: [ testing ]
     secrets: inherit
     with:
@@ -41,7 +41,7 @@ jobs:
 
   # Vendor the dependencies into the repository if needed
   vendoring:
-    uses: advanced-security/reusable-workflows/.github/workflows/python-vendor.yml@v0.2.0
+    uses: advanced-security/reusable-workflows/.github/workflows/python-vendor.yml@v0.3.0
     needs: [ testing, linting ]
     if: ${{ inputs.vendor == 'true' }}
     secrets: inherit
@@ -51,7 +51,7 @@ jobs:
 
   # Release a new version of the package
   release:
-    uses: advanced-security/reusable-workflows/.github/workflows/python-release.yml@v0.2.0
+    uses: advanced-security/reusable-workflows/.github/workflows/python-release.yml@v0.3.0
     needs: [ testing, linting ]
     secrets: inherit
     with:
