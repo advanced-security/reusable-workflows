@@ -10,10 +10,14 @@ on:
         description: 'Python versions to test against'
         type: string
         # All Major versions of Python that are currently supported
-        default: '3.9,3.10,3.11,3.12'
+        default: '3.9,3.10,3.11,3.12,3.13'
+      tool:
+        description: 'The tool to lint with'
+        type: string
+        default: 'ruff'
 
 jobs:
-  python-versions:
+  versions:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -27,40 +31,56 @@ jobs:
           echo "matrix :: [$matrix]"
           echo "matrix=[$matrix]" >> "$GITHUB_OUTPUT"
 
-  python-testing:
+  testing:
     # This workflow runs on the latest version of Ubuntu
     runs-on: ubuntu-latest
     if: ${{ needs.python-versions.outputs.matrix != '[]' }}
-    needs: [ python-versions ]
+    needs: [ versions ]
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJSON(needs.python-versions.outputs.matrix) }}
+        python-version: ${{ fromJSON(needs.versions.outputs.matrix) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
           echo "Installing dependencies..."
-          if [[ -f pyproject.toml ]]; then
-              python -m pip install --upgrade pip poetry
-              poetry install
-          elif [[ -f Pipfile ]]; then
+          
+          if [[ -f Pipfile ]]; then
+              echo "Pipfile found, installing with pipenv"
               python -m pip install --upgrade pip pipenv
               pipenv sync -d
+
+          elif [[ -f uv.lock ]]; then
+            echo "uv.lock found, installing with uv"
+            python -m pip install --upgrade uv
+            uv python install "$PYTHON_VERSION"
+            uv sync -d
+
+          elif [[ -f pyproject.toml ]]; then
+              echo "pyproject.toml found, installing with poetry"
+              python -m pip install --upgrade pip poetry
+              poetry install
+          
           elif [[ -f requirements.txt ]]; then
+              echo "requirements.txt found, installing with pip"
               python -m pip install --upgrade pip
               pip install -r requirements.txt
+
           elif [[ -f Makefile ]]; then
               make install
+
           else
               echo "No manifest files found to install dependencies"
           fi
@@ -69,16 +89,46 @@ jobs:
         run: |
           set -e
           echo "Running Python tests..."
-          if [[ -f pyproject.toml ]]; then
-              echo "Running poetry run test"
-              poetry run test
-          elif [[ -f Pipfile ]]; then
+          
+          if [[ -f Pipfile ]]; then
               echo "Running pipenv run test"
               pipenv run test
+
+          elif [[ -f uv.lock ]]; then
+              echo "Running uv test"
+              uv run test
+
+          elif [[ -f pyproject.toml ]]; then
+              echo "Running poetry run test"
+              poetry run test
+
           elif [[ -f Makefile ]]; then
               echo "Running make test"
               make test
+
           else
               echo "Unknown test runner..."
+              echo "Please contact the oss-maintainers team for help."
+          fi
+
+      - name: Run linting
+        env:
+          TOOL: ${{ inputs.tool }}
+        run: |
+          set -e
+
+          if [[ "$TOOL" == "ruff" ]]; then
+              pip install ruff
+              ruff check
+
+          elif [[ "$TOOL" == "flake8" ]]; then
+              pip install flake8
+              flake8 .
+
+          elif [[ "$TOOL" == "black" ]]; then
+              pip install black
+              black --check .
+          else
+              echo "Unknown linting tool..."
               echo "Please contact the oss-maintainers team for help."
           fi

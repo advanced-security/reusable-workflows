@@ -71,9 +71,11 @@ jobs:
           fi
 
       - name: Run linting
+        env:
+          TOOL: ${{ inputs.tool }}
         run: |
           set -e
-          TOOL="${{ inputs.tool }}"
+
           if [[ "$TOOL" == "ruff" ]]; then
               pip install ruff
               ruff check
