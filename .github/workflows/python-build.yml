@@ -48,6 +48,8 @@ jobs:
       
       - name: Install dependencies
         if: ${{ github.event.inputs.install == 'true' }}
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
           if [[ -f Pipfile ]]; then
@@ -56,6 +58,11 @@ jobs:
           elif [[ -f requirements.txt ]]; then
             python -m pip install --upgrade pip
             pip install -r requirements.txt
+          elif [[ -f uv.lock ]]; then
+            python -m pip install --upgrade uv
+            uv python install "$PYTHON_VERSION"
+            uv sync -d
+
           elif [[ -f Makefile ]]; then
             make install
           else
@@ -71,6 +78,8 @@ jobs:
             pipenv run build
           elif [[ -f setup.py ]]; then
             python setup.py build
+          elif [[ -f uv.lock ]]; then
+            uv build
           elif [[ -f Makefile ]]; then
             make build
           else
