@@ -1,7 +1,9 @@
 name: "CodeQL Analysis"
 
 on:
+  # Makes the workflow reusable / callable from other workflows
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   create-matrix:
@@ -9,6 +11,8 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.languages }}
     steps:
+      # This step gets the languages for the repository and creates a supported
+      # CodeQL language list that gets passed into the analyze step
       - name: Get languages from repo
         id: set-matrix
         uses: advanced-security/set-codeql-language-matrix@v1
@@ -18,6 +22,7 @@ jobs:
           
   analyze:
     needs: create-matrix
+    # Check if there are no CodeQL supported languages
     if: ${{ needs.create-matrix.outputs.matrix != '[]' }}
     name: Analyze
     runs-on: ubuntu-latest
@@ -28,7 +33,8 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
+        # Create a matrix build for all supported languages
         language: ${{ fromJSON(needs.create-matrix.outputs.matrix) }}
 
     steps:
