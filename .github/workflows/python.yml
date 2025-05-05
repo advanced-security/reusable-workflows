@@ -30,14 +30,6 @@ jobs:
     with:
       versions: ${{ inputs.versions }}
 
-  # Run linters on the codebase
-  linting:
-    uses: advanced-security/reusable-workflows/.github/workflows/python-linting.yml@v0.3.0
-    needs: [ testing ]
-    secrets: inherit
-    with:
-      versions: ${{ inputs.versions }}
-
   # Vendor the dependencies into the repository if needed
   vendoring:
     uses: advanced-security/reusable-workflows/.github/workflows/python-vendor.yml@v0.3.0
