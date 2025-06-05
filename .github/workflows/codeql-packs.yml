@@ -47,8 +47,9 @@ jobs:
       - name: "Build and Publish CodeQL Packs"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKS: ${{ matrix.packs }}
         run: |
-          PACK_PATH="${{ matrix.packs }}/qlpack.yml"
+          PACK_PATH="${PACKS}/qlpack.yml"
           CURRENT_VERSION=$(grep version $PACK_PATH | awk '{print $2}')
           PACK_FULLNAME=$(cat $PACK_PATH | grep "name:" | awk '{print $2}')
           PACK_NAME=$(echo $PACK_FULLNAME | awk -F '/' '{print $2}')
