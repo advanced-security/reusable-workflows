@@ -27,10 +27,12 @@ jobs:
     steps:
       - name: Set matrix
         id: set-matrix
+        env:
+          VERSIONS: ${{ inputs.versions }}
         run: |
-          versions="${{ inputs.versions }}"
-          echo "Version Input :: $versions"
-          matrix=$(echo "$versions" | tr "," "\n" | awk '{print "\""$1"\""}' | paste -sd "," -)
+          set -e
+          echo "Version Input :: $VERSIONS"
+          matrix=$(echo "$VERSIONS" | tr "," "\n" | awk '{print "\""$1"\""}' | paste -sd "," -)
           echo "matrix :: [$matrix]"
           echo "matrix=[$matrix]" >> "$GITHUB_OUTPUT"
 
@@ -71,9 +73,10 @@ jobs:
           fi
 
       - name: Run linting
+        env:
+          TOOL: ${{ inputs.tool }}
         run: |
           set -e
-          TOOL="${{ inputs.tool }}"
           if [[ "$TOOL" == "ruff" ]]; then
               pip install ruff
               ruff check
