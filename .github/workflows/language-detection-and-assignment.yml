@@ -5,6 +5,8 @@ on:
     branches: [main]
 permissions: 
   pull-requests: write 
+env:
+  GH_TOKEN: ${{ github.token }}
 jobs:
   detect-and-assign:
     runs-on: ubuntu-latest
