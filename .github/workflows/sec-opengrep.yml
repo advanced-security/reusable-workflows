@@ -12,11 +12,6 @@ permissions:
   actions: read
   security-events: write
 
-env:
-  # Release version of Opengrep
-  # https://github.com/opengrep/opengrep/releases
-  RELEASE_VERSION: v1.1.2
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,16 +22,21 @@ jobs:
       - name: "Download / Install Opengrep"
         run: |
           set -e
-
-          echo "[+] Downloading Opengrep"
-          curl -sSfL \
-            -o "/usr/local/bin/opengrep" \
-            "https://github.com/opengrep/opengrep/releases/download/${RELEASE_VERSION}/opengrep_manylinux_x86"
+          echo "[+] Fetching latest Opengrep release information"
+          API_URL="https://api.github.com/repos/opengrep/opengrep/releases/latest"
+          ASSET_NAME="opengrep_manylinux_x86"
+          DOWNLOAD_URL=$(curl -s $API_URL | jq -r ".assets[] | select(.name==\"${ASSET_NAME}\") | .browser_download_url")
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Could not find download URL for $ASSET_NAME"
+            exit 1
+          fi
+          echo "[+] Downloading Opengrep from $DOWNLOAD_URL"
+          curl -sSfL -o "/usr/local/bin/opengrep" "$DOWNLOAD_URL"
           chmod +x /usr/local/bin/opengrep
           echo "[+] Finished installing opengrep"
-
+    
       - name: "Run Opengrep"
-        run: opengrep scan --metrics=on --sarif-output ./results.sarif .
+        run: opengrep scan --sarif-output ./results.sarif .
 
       - name: "Upload SARIF file"
         uses: github/codeql-action/upload-sarif@v3

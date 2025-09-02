@@ -1,11 +1,11 @@
 name: Language Detection and Assignment
 
 on:
-  pull_request:
-    branches: [main]
-
+  workflow_call:
+permissions: 
+  pull-requests: write 
 env:
-  GH_TOKEN: ${{ secrets.GH_AP_TOKEN }}
+  GH_TOKEN: ${{ github.token }}
 jobs:
   detect-and-assign:
     runs-on: ubuntu-latest
@@ -45,4 +45,4 @@ jobs:
       - name: Assign default
         if: steps.detect-languages.outputs.java != 'true' && steps.detect-languages.outputs.kotlin != 'true' && steps.detect-languages.outputs.javascript != 'true' && steps.detect-languages.outputs.typescript != 'true' && steps.detect-languages.outputs.go != 'true'  && steps.detect-languages.outputs.codeql != 'true' && steps.detect-languages.outputs.python != 'true'  
         run: |
-          gh pr edit ${{ github.event.number }} --add-reviewer felickz --add-reviewer Geekmasher --add-reviewer adrienpessu
+          gh pr edit ${{ github.event.number }} --add-reviewer felickz --add-reviewer felickz --add-reviewer adrienpessu --repo $GITHUB_REPOSITORY 
