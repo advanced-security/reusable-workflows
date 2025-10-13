@@ -16,6 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
-      - uses: Andrew-Chen-Wang/github-wiki-action@50650fccf3a10f741995523cf9708c53cec8912a
+      - uses: Andrew-Chen-Wang/github-wiki-action@6448478bd55f1f3f752c93af8ac03207eccc3213
