@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Download / Install Opengrep"
         run: |
@@ -39,7 +39,7 @@ jobs:
         run: opengrep scan --sarif-output ./results.sarif .
 
       - name: "Upload SARIF file"
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
         if: always()
