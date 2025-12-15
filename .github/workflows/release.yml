@@ -30,15 +30,15 @@ jobs:
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Patch Release Me"
-        uses: 42ByteLabs/patch-release-me@f950db6bce09f2156a5f2d1cc86ac60ed1663a9e    # 0.5.3
+        uses: 42ByteLabs/patch-release-me@ef44b04c04fde87280adf14548664bfbcebba04d    # 0.6.4
         with:
           mode: ${{ github.event.inputs.bump }}
 
       - name: "Create Release"
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
         with:
           token: ${{ github.token }}
           commit-message: "[chore]: Create release for ${{ github.event.inputs.version }}"
