@@ -17,7 +17,7 @@ jobs:
       - name: Detect languages
         id: detect-languages
         run: |
-          FILES=$(gh pr diff --name-only ${{ github.event.number }} | sed 's/.*\.//')  
+          FILES=$(gh pr diff --name-only "$GITHUB_EVENT_NUMBER" | sed 's/.*\.//')  
           echo "java=$(echo $FILES | grep -q "java" && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "kotlin=$(echo $FILES | grep -q "kt" && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "javascript=$(echo $FILES | grep -E "(js|jsx)" && echo true || echo false)" >> $GITHUB_OUTPUT
