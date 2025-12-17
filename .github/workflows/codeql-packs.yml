@@ -18,9 +18,11 @@ jobs:
       - name: "Set Matrix"
         id: set-matrix
         uses: actions/github-script@v8
+        env:
+          INPUTS_PACKS: ${{ inputs.packs }}
         with:
           script: |
-            const packs = '${{ inputs.packs }}'.split(',');
+            const packs = process.env.INPUTS_PACKS.split(',');
             packs.forEach((pack, index) => {
               if (pack.endsWith('qlpack.yml')) {
                 packs[index] = pack.slice(0, -10);
@@ -48,13 +50,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKS: ${{ matrix.packs }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           PACK_PATH="${PACKS}/qlpack.yml"
           CURRENT_VERSION=$(grep version $PACK_PATH | awk '{print $2}')
           PACK_FULLNAME=$(cat $PACK_PATH | grep "name:" | awk '{print $2}')
           PACK_NAME=$(echo $PACK_FULLNAME | awk -F '/' '{print $2}')
 
-          PUBLISHED_VERSION=$(gh api /orgs/${{ github.repository_owner }}/packages/container/$PACK_NAME/versions --jq '.[0].metadata.container.tags[0]')
+          PUBLISHED_VERSION=$(gh api /orgs/"$GITHUB_REPOSITORY_OWNER"/packages/container/"$PACK_NAME"/versions --jq '.[0].metadata.container.tags[0]')
           echo "Packs :: ${CURRENT_VERSION} -> ${PUBLISHED_VERSION}"
 
           if [ "$PUBLISHED_VERSION" != "$CURRENT_VERSION" ]; then
@@ -62,5 +65,3 @@ jobs:
             gh codeql pack install "${{ matrix.packs }}"
             gh codeql pack publish "${{ matrix.packs }}"
           fi
-
-      
