@@ -3,9 +3,10 @@ name: Language Detection and Assignment
 on:
   workflow_call:
 permissions: 
-  pull-requests: write 
+  pull-requests: write
 env:
   GH_TOKEN: ${{ github.token }}
+  GITHUB_EVENT_NUMBER: ${{ github.event.number }}
 jobs:
   detect-and-assign:
     runs-on: ubuntu-latest
@@ -30,19 +31,19 @@ jobs:
       - name: Assign for Java, Kotlin, JavaScript, TypeScript, Go
         if: steps.detect-languages.outputs.java == 'true' || steps.detect-languages.outputs.kotlin == 'true' || steps.detect-languages.outputs.javascript == 'true' || steps.detect-languages.outputs.typescript == 'true' || steps.detect-languages.outputs.go == 'true'
         run: |
-          gh pr edit ${{ github.event.number }} --add-reviewer adrienpessu
+          gh pr edit "$GITHUB_EVENT_NUMBER" --add-reviewer adrienpessu
 
       - name: Assign for Python, Go, CodeQL, Rust
         if: steps.detect-languages.outputs.python == 'true' || steps.detect-languages.outputs.go == 'true' || steps.detect-languages.outputs.codeql == 'true' || steps.detect-languages.outputs.rust == 'true'
         run: |
-          gh pr edit ${{ github.event.number }} --add-reviewer Geekmasher
+          gh pr edit "$GITHUB_EVENT_NUMBER" --add-reviewer felickz
 
       - name: Assign for Python, JavaScript, TypeScript, CodeQL
         if: steps.detect-languages.outputs.python == 'true' || steps.detect-languages.outputs.javascript == 'true' || steps.detect-languages.outputs.typescript == 'true' || steps.detect-languages.outputs.codeql == 'true'
         run: |
-          gh pr edit ${{ github.event.number }} --add-reviewer felickz
+          gh pr edit "$GITHUB_EVENT_NUMBER" --add-reviewer felickz
 
       - name: Assign default
         if: steps.detect-languages.outputs.java != 'true' && steps.detect-languages.outputs.kotlin != 'true' && steps.detect-languages.outputs.javascript != 'true' && steps.detect-languages.outputs.typescript != 'true' && steps.detect-languages.outputs.go != 'true'  && steps.detect-languages.outputs.codeql != 'true' && steps.detect-languages.outputs.python != 'true'  
         run: |
-          gh pr edit ${{ github.event.number }} --add-reviewer felickz --add-reviewer felickz --add-reviewer adrienpessu --repo $GITHUB_REPOSITORY 
+          gh pr edit "$GITHUB_EVENT_NUMBER" --add-reviewer felickz --add-reviewer adrienpessu --repo "$GITHUB_REPOSITORY"
