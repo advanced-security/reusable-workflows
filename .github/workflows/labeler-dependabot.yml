@@ -2,64 +2,65 @@ name: Labeler - Dependabot
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
 
-# Permissions needed to label PRs and create/update labels.
 permissions:
   contents: read
   pull-requests: write
-  issues: write
+
+env:
+  ENSURE_LABELS_EXIST: 'true' # Set to 'false' to skip label creation
 
 jobs:
   label-dependabot:
     runs-on: ubuntu-latest
-    # Only run for Dependabot-authored pull requests
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    # Only run for Dependabot PRs that have not already been labeled
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'dependabot-security-update') &&
+      !contains(github.event.pull_request.labels.*.name, 'dependabot-version-update')
     steps:
-      # Fetch metadata about the dependencies being updated (names, type, semver update-type, etc.).
-      # Note: alert-lookup is intentionally omitted — it requires a fine-grained PAT and
-      # does not work with GITHUB_TOKEN, so ghsa-id is always empty when using the standard token.
-      # Security vs. version update detection is handled via PR body text instead (see below).
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v2
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
       # Ensure the custom labels exist before applying them.
-      # `gh label create --force` is a no-op when the label already exists,
-      # so this step is safe to run on every PR and handles the case where
-      # the labels have not yet been created in the repository.
+      # Skipped when ENSURE_LABELS_EXIST is 'false' (e.g. labels are managed centrally).
       - name: Ensure labels exist
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh label create "dependabot-security-update" \
-            --color "e11d48" \
-            --description "Dependabot security update" \
-            --repo "${{ github.repository }}" \
-            --force
-          gh label create "dependabot-version-update" \
-            --color "0075ca" \
-            --description "Dependabot version update" \
-            --repo "${{ github.repository }}" \
-            --force
+        if: env.ENSURE_LABELS_EXIST == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = ['dependabot-security-update', 'dependabot-version-update'];
+            const existing = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const existingNames = existing.data.map(l => l.name);
 
-      # Dependabot security update PRs always contain this phrase in their body.
-      # Version update PRs never contain this phrase.
-      - name: Label as security update
-        if: contains(github.event.pull_request.body, 'You can disable automated security fix PRs')
-        run: gh pr edit "$PR_URL" --add-label "dependabot-security-update"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            for (const label of labels) {
+              if (!existingNames.includes(label)) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label
+                });
+                core.info(`Created label: ${label}`);
+              }
+            }
 
-      - name: Label as version update
-        if: "!contains(github.event.pull_request.body, 'You can disable automated security fix PRs')"
-        run: gh pr edit "$PR_URL" --add-label "dependabot-version-update"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Dependabot security update PRs are identified by two phrases in their body.
+      # Version update PRs never contain either phrase.
+      - name: Detect update type and apply label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const isSecurityUpdate = prBody.includes('[Security Alerts page]') ||
+              prBody.includes('You can disable automated security fix PRs');
+
+            const label = isSecurityUpdate ? 'dependabot-security-update' : 'dependabot-version-update';
+            core.info(`PR #${context.payload.pull_request.number} is ${isSecurityUpdate ? '' : 'not '}a security update — adding label: ${label}`);
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [label]
+            });
