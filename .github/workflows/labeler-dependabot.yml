@@ -1,0 +1,69 @@
+name: Labeler - Dependabot
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+# Permissions needed to label PRs and create/update labels.
+# security-events: read is required for dependabot/fetch-metadata alert-lookup.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  security-events: read
+
+jobs:
+  label-dependabot:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot-authored pull requests
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+      # Fetch metadata about the dependencies being updated.
+      # alert-lookup: true populates ghsa-id / alert-state for security update PRs.
+      # Note: if GITHUB_TOKEN does not have sufficient Dependabot alert access (e.g.
+      # private repos or restricted org settings) you can replace secrets.GITHUB_TOKEN
+      # with a fine-grained PAT that has the `security_events` read permission.
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          alert-lookup: true
+
+      # Ensure the custom labels exist before applying them.
+      # `gh label create --force` is a no-op when the label already exists,
+      # so this step is safe to run on every PR and handles the case where
+      # the labels have not yet been created in the repository.
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "dependabot-security-update" \
+            --color "e11d48" \
+            --description "Dependabot security update" \
+            --repo "${{ github.repository }}" \
+            --force
+          gh label create "dependabot-version-update" \
+            --color "0075ca" \
+            --description "Dependabot version update" \
+            --repo "${{ github.repository }}" \
+            --force
+
+      # Apply the security-update label when fetch-metadata identifies a GHSA.
+      - name: Label as security update
+        if: steps.metadata.outputs.ghsa-id != ''
+        run: gh pr edit "$PR_URL" --add-label "dependabot-security-update"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Apply the version-update label when no GHSA is associated with the PR.
+      - name: Label as version update
+        if: steps.metadata.outputs.ghsa-id == ''
+        run: gh pr edit "$PR_URL" --add-label "dependabot-version-update"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
