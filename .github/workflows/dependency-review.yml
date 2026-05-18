@@ -43,7 +43,7 @@ jobs:
           fi
 
       - name: 'Dependency Review'
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           # this value can also be hardcoded to a remote repository
           # Example: advanced-security/reusable-workflows/.github/dependency-review.yml@v0.1.0
