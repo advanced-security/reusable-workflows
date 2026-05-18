@@ -13,7 +13,7 @@ on:
         description: 'Enable or disable retrying the action every 10 seconds while waiting for dependency submission actions to complete.'
         type: boolean
         required: false
-        default: false
+        default: true
       retry-on-snapshot-warnings-timeout:
         description: 'Maximum amount of time (in seconds) to retry the action while waiting for dependency submission actions to complete.'
         type: number
