@@ -25,7 +25,10 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      workflows: write  # Required: patch-release-me modifies workflow files
+    # NOTE: patch-release-me bumps version refs inside .github/workflows/*.yml
+    # (configured in .release.yml). create-pull-request needs a PAT or GitHub
+    # App token with `workflows` scope to push those changes. GITHUB_TOKEN
+    # cannot modify workflow files. Pass a custom token via secrets if needed.
     steps:
       - name: "Checkout"
         uses: actions/checkout@v6
