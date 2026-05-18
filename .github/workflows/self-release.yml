@@ -3,13 +3,51 @@ name: "Self - Release"
 on:
   push:
     branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        description: "The type of version bump to perform"
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  # Manual version bump: creates a PR with the bumped version in .release.yml
+  release-next:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Patch Release Me"
+        uses: 42ByteLabs/patch-release-me@6cd166a460bc205b93c29acb6fef2aa275dc0502 # 0.6.5
+        with:
+          mode: ${{ github.event.inputs.bump }}
+
+      - name: "Create Release PR"
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ github.token }}
+          commit-message: "[chore]: Create release for ${{ github.event.inputs.bump }}"
+          title: "[chore]: Create release (${{ github.event.inputs.bump }} bump)"
+          branch: chore-release-${{ github.event.inputs.bump }}
+          labels: version
+          body: |
+            This is an automated PR to create a new release. The release will be created once this PR is merged.
+
+  # Automatic release: triggered when .release.yml version changes on push to main
   fetch-release:
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       release: ${{ steps.version-changes.outputs.release }}

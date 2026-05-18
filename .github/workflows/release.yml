@@ -2,21 +2,18 @@
 name: GitHub - Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      bump:
-        type: choice
-        description: "The type of version bump to perform"
-        options: 
-          - patch
-          - minor
-          - major
   workflow_call:
     inputs:
       version:
-        description: "The version to release"
-        required: true
+        description: "Explicit version to release (e.g., 2.3.0). Takes priority over bump."
+        required: false
         type: string
+        default: ''
+      bump:
+        description: "Auto-bump from latest release tag (patch/minor/major). Ignored if version is set."
+        required: false
+        type: string
+        default: ''
       prerelease:
         description: "Create as a pre-release (skips major/minor tag updates)"
         required: false
@@ -24,40 +21,60 @@ on:
         default: false
 
 jobs:
-  release-next:
+  resolve-version:
     runs-on: ubuntu-latest
-    # If the workflow was triggered by workflow_dispatch
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-
-    permissions:
-      contents: write
-      pull-requests: write
-
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
     steps:
-      - name: "Checkout"
-        uses: actions/checkout@v6
+      - name: Resolve version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_BUMP: ${{ inputs.bump }}
+        run: |
+          if [ -n "$INPUT_VERSION" ] && [ -n "$INPUT_BUMP" ]; then
+            echo "::warning::Both 'version' and 'bump' were provided. Using explicit 'version' ($INPUT_VERSION)."
+          fi
 
-      - name: "Patch Release Me"
-        uses: 42ByteLabs/patch-release-me@6cd166a460bc205b93c29acb6fef2aa275dc0502    # 0.6.5
-        with:
-          mode: ${{ github.event.inputs.bump }}
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "Using explicit version: $INPUT_VERSION"
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-      - name: "Create Release"
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        with:
-          token: ${{ github.token }}
-          commit-message: "[chore]: Create release for ${{ github.event.inputs.version }}"
-          title: "[chore]: Create release for ${{ github.event.inputs.version }}"
-          branch: chore-release-${{ github.event.inputs.version }}
-          base: ${{ github.event.before }}
-          labels: version
-          body: |
-            This is an automated PR to create a new release. The release will be created once this PR is merged.
+          if [ -z "$INPUT_BUMP" ]; then
+            echo "::error::Either 'version' or 'bump' input is required."
+            exit 1
+          fi
+
+          # Look up latest release tag and increment
+          LATEST=$(gh api /repos/$GITHUB_REPOSITORY/releases/latest --jq '.tag_name' 2>/dev/null || echo "")
+          if [ -z "$LATEST" ]; then
+            echo "::warning::No existing releases found. Defaulting to 0.1.0"
+            echo "version=0.1.0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Strip leading 'v' if present
+          LATEST="${LATEST#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST"
+
+          case "$INPUT_BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "::error::Invalid bump type '$INPUT_BUMP'. Must be patch, minor, or major."; exit 1 ;;
+          esac
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "Bumped $LATEST -> $NEW_VERSION ($INPUT_BUMP)"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
   release:
+    needs: resolve-version
     runs-on: ubuntu-latest
-    # If the workflow was triggered by a workflow call and the version is not null
-    if: ${{ github.event_name == 'workflow_call' && inputs.version != '' }}
+    if: ${{ needs.resolve-version.outputs.version != '' }}
 
     permissions:
       contents: write
@@ -68,7 +85,7 @@ jobs:
         id: version
         uses: peter-murray/semver-action@5a07021b987a48fb9129231397615329ad74703c # v1.0.1
         with:
-          version: ${{ inputs.version }}
+          version: ${{ needs.resolve-version.outputs.version }}
 
       # Tags :: ${Full}, v${Major}, v${Major}.${Minor}, v${Major}.${Minor}.${Patch}
       - name: "GitHub Release"
