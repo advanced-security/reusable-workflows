@@ -1,0 +1,11 @@
+name: "reusable-workflows"
+version: "0.2.0"
+
+locations:
+  - name: "Actions Versions"
+    paths:
+      - '.github/workflows/*.yml'
+      - 'wiki/*.md'
+    patterns:
+      # Actions
+      - 'advanced-security/reusable-workflows/.github/workflows/.*\.yml@v([0-9]\.[0-9]\.[0-9])'

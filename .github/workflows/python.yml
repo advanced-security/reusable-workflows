@@ -1,0 +1,57 @@
+# Python Testing Workflow
+# 
+# - Automatically runs tests on all supported versions of Python
+name: Python
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Python main version to vendor'
+        type: string
+        # All Major versions of Python that are currently supported
+        default: '3.11'
+      versions:
+        description: 'Python versions to test against'
+        type: string
+        # All Major versions of Python that are currently supported
+        default: '3.9,3.10,3.11,3.12,3.13'
+      vendor:
+        description: 'Whether to vendor the dependencies'
+        type: string
+        default: 'true'
+
+
+jobs:
+  # Run the tests on all supported versions of Python
+  testing:
+    uses: advanced-security/reusable-workflows/.github/workflows/python-testing.yml@v0.3.0
+    secrets: inherit
+    with:
+      versions: ${{ inputs.versions }}
+
+  # Run linters on the codebase
+  linting:
+    uses: advanced-security/reusable-workflows/.github/workflows/python-linting.yml@v0.3.0
+    needs: [ testing ]
+    secrets: inherit
+    with:
+      versions: ${{ inputs.versions }}
+
+  # Vendor the dependencies into the repository if needed
+  vendoring:
+    uses: advanced-security/reusable-workflows/.github/workflows/python-vendor.yml@v0.3.0
+    needs: [ testing, linting ]
+    if: ${{ inputs.vendor == 'true' }}
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}
+      custom-property: 'OSSType'
+
+  # Release a new version of the package
+  release:
+    uses: advanced-security/reusable-workflows/.github/workflows/python-release.yml@v0.3.0
+    needs: [ testing, linting ]
+    secrets: inherit
+    with:
+      version: ${{ inputs.version }}

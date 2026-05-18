@@ -15,7 +15,7 @@ This workflow does the following:
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/container.yml@main
+uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.2.0
 secrets: inherit
 with:
   # This is used for tagging the container image.
@@ -26,7 +26,7 @@ with:
 **With Settings:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/container.yml@main
+uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.2.0
 secrets: inherit
 with:
   # This is used for tagging the container image

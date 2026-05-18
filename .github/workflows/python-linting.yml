@@ -1,0 +1,89 @@
+# Python Testing Workflow
+# 
+# - Automatically runs tests on all supported versions of Python
+name: Python - Linting
+
+on:
+  workflow_call:
+    inputs:
+      tool:
+        description: 'The tool to lint with'
+        type: string
+        default: 'ruff'
+      versions:
+        description: 'Python versions to test against'
+        type: string
+        # All Major versions of Python that are currently supported
+        default: '3.9,3.10,3.11,3.12,3.13'
+
+permissions:
+  contents: read
+
+jobs:
+  python-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set matrix
+        id: set-matrix
+        env:
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          set -e
+          echo "Version Input :: $VERSIONS"
+          matrix=$(echo "$VERSIONS" | tr "," "\n" | awk '{print "\""$1"\""}' | paste -sd "," -)
+          echo "matrix :: [$matrix]"
+          echo "matrix=[$matrix]" >> "$GITHUB_OUTPUT"
+
+  python-linting:
+    runs-on: ubuntu-latest
+    if: ${{ needs.python-versions.outputs.matrix != '[]' }}
+    needs: [ python-versions ]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(needs.python-versions.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        run: |
+          set -e
+          if [[ -f pyproject.toml ]]; then
+              python -m pip install --upgrade pip poetry
+              poetry install
+          elif [[ -f Pipfile ]]; then
+              python -m pip install --upgrade pip pipenv
+              pipenv sync -d
+          elif [[ -f requirements.txt ]]; then
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+          elif [[ -f Makefile ]]; then
+              make install
+          else
+              echo "No manifest files found to install dependencies"
+          fi
+
+      - name: Run linting
+        env:
+          TOOL: ${{ inputs.tool }}
+        run: |
+          set -e
+          if [[ "$TOOL" == "ruff" ]]; then
+              pip install ruff
+              ruff check
+          elif [[ "$TOOL" == "flake8" ]]; then
+              pip install flake8
+              flake8 .
+          elif [[ "$TOOL" == "black" ]]; then
+              pip install black
+              black --check .
+          fi

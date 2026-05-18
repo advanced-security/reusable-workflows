@@ -1,0 +1,99 @@
+# Python Vendoring Workflow
+name: Python - Vendoring
+
+on:
+  workflow_call:
+    inputs:
+      custom-property:
+        description: 'Name of the custom property to get value from'
+        type: string
+        default: 'OSSType'
+      version:
+        description: 'Python main version to vendor'
+        type: string
+        # All Major versions of Python that are currently supported
+        default: '3.11'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  custom-property:
+    runs-on: ubuntu-latest
+    outputs:
+      osstype: ${{ steps.get_custom_property.outputs.osstype }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: "Get Custom Property"
+        id: get_custom_property
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROPERTY_NAME: ${{ inputs.custom-property }}
+        run: |
+          set -e
+
+          PROPERTIES=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/properties/values)
+          echo "Properties: '$PROPERTIES'"
+
+          REPOSITORY_TYPE=$(echo $PROPERTIES | jq -r ".[] | select(.property_name == \"$PROPERTY_NAME\") | .value")
+          echo "Repository type: '$REPOSITORY_TYPE'"
+          echo "osstype=$REPOSITORY_TYPE" >> "$GITHUB_OUTPUT"
+
+  python-vendoring:
+    runs-on: ubuntu-latest
+    needs: [ custom-property ]
+    if: ${{ needs.custom-property.outputs.osstype == 'Actions' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      
+      - name: Set up Python ${{ inputs.version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.version }}
+      
+      - name: "Install and Vendor dependencies"
+        id: vendoring
+        run: |
+          set -e
+
+          if [[ -f Pipfile ]]; then
+            python -m pip install --upgrade pip pipenv
+            pipenv run vendor
+          elif [[ -f Makefile ]]; then
+            make vendor
+          elif [[ -f vendor/update.sh ]]; then
+            ./vendor/update.sh
+          else
+            echo "Unknown vendoring method"
+          fi
+
+          CHANGES=$(git status --porcelain | wc -l)
+          echo "changes=$CHANGES" >> "$GITHUB_OUTPUT"
+        
+      - name: "Create Pull Request with updated vendored dependencies"
+        if: ${{ steps.vendoring.outputs.changes > 0 }}
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          token: ${{ github.token }}
+          commit-message: "[chore]: Update vendored dependencies"
+          title: "[chore]: Update vendored dependencies"
+          branch: update-vendored-dependencies
+          labels: dependencies
+          body: |
+            This is an automated PR to update that vendored dependencies are up to date.
+            It was created by a GitHub workflow defined in `.github/workflows/python-vendor.yml`.
+            Please do not merge this PR manually.
+            <details>
+              <summary>Details</summary>
+              <p>
+                This PR was created by a workflow that runs on all pushes to the repository.
+                It installs dependencies and then verifies that the repository is clean.
+              </p>
+            </details>

@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout Repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # [optional] This setup isn't required but if your repository have a configuration,
       # we use that versus the centralised config. 
@@ -49,15 +49,15 @@ jobs:
             echo "No local configuration file found"
             echo "Using configuration file from advanced-security/reusable-workflows repository"
 
-            echo "config=advanced-security/reusable-workflows/.github/dependency-review.yml@main" >> $GITHUB_STATE
+            echo "config=advanced-security/reusable-workflows/.github/dependency-review.yml@v0.1.0" >> $GITHUB_STATE
 
           fi
 
       - name: 'Dependency Review'
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           # this value can also be hardcoded to a remote repository
-          # Example: advanced-security/reusable-workflows/.github/dependency-review.yml@main
+          # Example: advanced-security/reusable-workflows/.github/dependency-review.yml@v0.1.0
           config-file: ${{ steps.config.outputs.config }}
           comment-summary-in-pr: "always"
           retry-on-snapshot-warnings: ${{ inputs.retry-on-snapshot-warnings || false }}

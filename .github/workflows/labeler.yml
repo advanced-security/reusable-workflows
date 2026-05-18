@@ -18,22 +18,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     # Check if the .github/labeler.yml file exists
     - name: Check for labeler configuration
       id: labeler-config
       env:
         GH_TOKEN: ${{ github.token }}
+        CONFIG_PATH: ${{ github.event.inputs.configuration-path }}
       run: |
         set -e
         if [ -f .github/labeler.yml ]; then
           echo "Labeler configuration found"
           echo "config=./.github/labeler.yml" >> $GITHUB_STATE
 
-        elif [[ -f "${{ github.event.inputs.configuration-path }}" ]]; then
+        elif [[ -f "$CONFIG_PATH" ]]; then
           echo "Labeler configuration found"
-          echo "config=${{ github.event.inputs.configuration-path }}" >> $GITHUB_STATE
+          echo "config=$CONFIG_PATH" >> $GITHUB_STATE
 
         else
           echo "No labeler configuration found"
@@ -45,7 +46,7 @@ jobs:
 
         fi
 
-    - uses: "actions/labeler@v5"
+    - uses: "actions/labeler@v6"
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         configuration-path: "${{ steps.labeler-config.outputs.config }}"

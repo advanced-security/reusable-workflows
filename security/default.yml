@@ -1,0 +1,27 @@
+name: Advanced Security Policy
+
+codescanning:
+  level: error
+
+# Dependency Security Alters
+dependabot:
+  level: high
+
+# Dependency Licensing Alerts
+licensing:
+  conditions:
+    ids:
+      - GPL-*
+      - LGPL-*
+      - AGPL-*
+
+  warnings:
+    # Warning is the dependency isn't known
+    ids:
+      - Other
+      - NA
+      - None
+      - NOASSERTION
+
+secretscanning:
+  level: all

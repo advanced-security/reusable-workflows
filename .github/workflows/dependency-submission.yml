@@ -1,0 +1,79 @@
+# Dependency Submission Workflow
+#
+# Submits dependency information to GitHub's Dependency Graph for security
+# advisory tracking. Designed to be called by other repositories.
+#
+# Currently supports:
+#   - actions: GitHub Actions dependencies from workflow files and composite actions
+#
+# Future ecosystem support can be added as additional jobs with skip-* inputs.
+name: Dependency Submission
+
+on:
+  workflow_call:
+    inputs:
+      skip-actions:
+        description: "Skip GitHub Actions dependency submission"
+        required: false
+        type: boolean
+        default: false
+      actions-additional-paths:
+        description: "Additional paths to scan for composite actions (comma or newline separated)"
+        required: false
+        type: string
+        default: ''
+      actions-fork-organizations:
+        description: "Comma-separated org names containing forked actions (for enterprise fork traversal)"
+        required: false
+        type: string
+        default: ''
+      actions-fork-regex:
+        description: "Regex to transform forked repo names to originals (requires named captures 'org' and 'repo')"
+        required: false
+        type: string
+        default: ''
+      actions-detect-docker:
+        description: "Detect and report Docker image dependencies from workflows and Dockerfiles"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  actions:
+    name: Actions Dependencies
+    if: ${{ !inputs.skip-actions }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for dependency submission API
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Detect action repository
+        id: detect
+        run: |
+          # Check for action.yml/action.yaml in repo root (this is an action repo)
+          if [ -f "action.yml" ] || [ -f "action.yaml" ]; then
+            echo "is-action-repo=true" >> "$GITHUB_OUTPUT"
+            echo "Detected action repository (action.yml found at root)"
+          else
+            echo "is-action-repo=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Check for workflow files
+          if ls .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null | head -1 > /dev/null; then
+            echo "has-workflows=true" >> "$GITHUB_OUTPUT"
+            echo "Detected workflow files in .github/workflows/"
+          else
+            echo "has-workflows=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit Actions dependencies
+        if: steps.detect.outputs.is-action-repo == 'true' || steps.detect.outputs.has-workflows == 'true'
+        uses: jessehouwing/actions-dependency-submission@19481049f19a8b6d54adbde7c323de5184b8bab5 # v1
+        with:
+          token: ${{ github.token }}
+          additional-paths: ${{ inputs.actions-additional-paths }}
+          fork-organizations: ${{ inputs.actions-fork-organizations }}
+          fork-regex: ${{ inputs.actions-fork-regex }}
+          detect-docker: ${{ inputs.actions-detect-docker && 'true' || 'false' }}

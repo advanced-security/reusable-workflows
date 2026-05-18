@@ -1,0 +1,114 @@
+# GitHub Releasing Workflow
+name: GitHub - Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        description: "The type of version bump to perform"
+        options: 
+          - patch
+          - minor
+          - major
+  workflow_call:
+    inputs:
+      version:
+        description: "The version to release"
+        required: true
+        type: string
+      prerelease:
+        description: "Create as a pre-release (skips major/minor tag updates)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release-next:
+    runs-on: ubuntu-latest
+    # If the workflow was triggered by workflow_dispatch
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Patch Release Me"
+        uses: 42ByteLabs/patch-release-me@6cd166a460bc205b93c29acb6fef2aa275dc0502    # 0.6.5
+        with:
+          mode: ${{ github.event.inputs.bump }}
+
+      - name: "Create Release"
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ github.token }}
+          commit-message: "[chore]: Create release for ${{ github.event.inputs.version }}"
+          title: "[chore]: Create release for ${{ github.event.inputs.version }}"
+          branch: chore-release-${{ github.event.inputs.version }}
+          base: ${{ github.event.before }}
+          labels: version
+          body: |
+            This is an automated PR to create a new release. The release will be created once this PR is merged.
+
+  release:
+    runs-on: ubuntu-latest
+    # If the workflow was triggered by a workflow call and the version is not null
+    if: ${{ github.event_name == 'workflow_call' && inputs.version != '' }}
+
+    permissions:
+      contents: write
+
+    steps:
+      # https://github.com/peter-murray/semver-data-action
+      - name: Parse SemVer
+        id: version
+        uses: peter-murray/semver-action@5a07021b987a48fb9129231397615329ad74703c # v1.0.1
+        with:
+          version: ${{ inputs.version }}
+
+      # Tags :: ${Full}, v${Major}, v${Major}.${Minor}, v${Major}.${Minor}.${Patch}
+      - name: "GitHub Release"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}
+          MAJOR_TAG: v${{ steps.version.outputs.major }}
+          MINOR_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git tag "$VERSION_TAG" --force
+
+          # Only update major/minor floating tags for full releases
+          if [ "$PRERELEASE" != "true" ]; then
+            git tag "$MAJOR_TAG" --force
+            git tag "$MINOR_TAG" --force
+          fi
+
+          git push origin ${{ github.ref_name }}
+          git push origin --tags --force
+
+          # Create or update the release (supports promotion from prerelease)
+          if gh release view "$VERSION_TAG" > /dev/null 2>&1; then
+            echo "Release $VERSION_TAG exists — updating"
+            if [ "$PRERELEASE" = "true" ]; then
+              gh release edit "$VERSION_TAG" --prerelease --title "$VERSION_TAG"
+            else
+              gh release edit "$VERSION_TAG" --latest --prerelease=false --title "$VERSION_TAG"
+            fi
+          else
+            echo "Creating release $VERSION_TAG"
+            RELEASE_FLAGS="--generate-notes --title $VERSION_TAG"
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_FLAGS="$RELEASE_FLAGS --prerelease"
+            else
+              RELEASE_FLAGS="$RELEASE_FLAGS --latest"
+            fi
+            gh release create $RELEASE_FLAGS "$VERSION_TAG"
+          fi
+      

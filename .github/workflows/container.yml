@@ -1,4 +1,4 @@
-name: Conatiner Build and Release
+name: Container Build and Release
 
 on:
   workflow_call:
@@ -6,17 +6,16 @@ on:
       version:
         description: "Semantic version of the image"
         type: string
-        required: true
 
       container-file:
         description: "Path to the Dockerfile"
         type: string
         default: "Dockerfile"
-      
-      signing:
-        description: "Sign the image"
+
+      container-name:
+        description: "Name of the container"
         type: string
-        default: "true"
+        default: "${{ github.repository }}"
 
       publish:
         description: "Publish the image to the registry"
@@ -45,132 +44,78 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-publish-image:
+  set-version:
     runs-on: ubuntu-latest
-
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
+      release: ${{ steps.set-version.outputs.release }}
+      version: ${{ steps.set-version.outputs.version }}
 
     permissions:
-      # to upload SBOM
       id-token: write
-      contents: write
-      # to upload Docker image
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3.2.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5.5.1
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            # latest / main
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-            # SemVer
-            type=semver,pattern={{version}},value=${{ inputs.version }}
-            # SemVer, major only
-            type=semver,pattern=v{{major}},value=${{ inputs.version }}
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v6.2.0
-        id: build
-        with:
-          file: "${{ inputs.docker-file }}"
-          context: .
-          push: ${{ inputs.publish }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # SBOM Settings
-          sbom: true
-
-      # Upload Software Bill of Materials (SBOM) to GitHub
-      - name: Upload SBOM
-        uses: advanced-security/spdx-dependency-submission-action@v0.1.1
-        if: ${{ inputs.sbom == 'true' }}
-        with:
-          filePath: '.'
-          filePattern: '*.spdx.json'
-
-  scanning:
-    runs-on: ubuntu-latest
-    needs: build-publish-image
-    # Scan the image only if it is being published
-    if: ${{ inputs.scanning == 'true' && inputs.publish == 'true' }}
-
-    permissions:
       contents: read
-      # read the image from GitHub Container Registry
-      packages: read
-      # to scan the Docker image
-      security-events: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3.2.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Scan the image for vulnerabilities
-      - name: Run the Anchore Grype scan action
-        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
-        id: scan
-        with:
-          image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}@${{ needs.build-publish-image.outputs.digest }}"
-          only-fixed: true
-          fail-build: ${{ inputs.scanning-block }}
-
-      - name: Upload vulnerability report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
-
-  signing:
-    runs-on: ubuntu-latest
-    needs: build-publish-image
-    # Sign the image only if it is being published
-    if: ${{ inputs.signing == 'true' && inputs.publish == 'true'  }}
-
-    permissions:
-      # read the image from GitHub Container Registry
-      packages: read
-
-    steps:
-      - uses: sigstore/cosign-installer@v3.5.0
-        with:
-          cosign-release: 'v2.2.2'
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3.2.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Sign the published container
-        # This step uses the identity token to provision an ephemeral certificate against the sigstore community Fulcio instance.
+      - name: "Checkout"
+        uses: actions/checkout@v6
+      - name: "Get and Set version"
+        id: set-version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cosign sign --yes \
-            ${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
-  
+          set -e
+
+          if [[ -f .release.yml ]]; then
+            pip install yq
+            current_version=$(yq -r ".version" .release.yml)
+            echo "Current Version :: $current_version"  
+
+            echo "version=$current_version" >> $GITHUB_OUTPUT
+          else
+            echo "Failed to find version..."
+            exit 1
+          fi
+
+          released_version=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/releases/latest | jq -r ".tag_name")
+
+          if [[ "$current_version" == "NA" || "$current_version" == "$released_version" ]]; then
+            echo "No new release found"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New release found"
+            echo "version=$current_version" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Scan the container 
+  scan-image:
+    uses: advanced-security/reusable-workflows/.github/workflows/container-security.yml@main
+    needs: set-version
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+      packages: read           # Read Container Registry
+      security-events: write   # Code Scanning
+    with:
+      version: ${{ needs.set-version.outputs.version }}
+      container-file: ${{ inputs.container-file }}
+      container-name: ${{ inputs.container-name }}
+      scanning-block: ${{ inputs.scanning-block }}
+
+  publish-image:
+    uses: advanced-security/reusable-workflows/.github/workflows/container-publish.yml@main
+    needs: [ scan-image, set-version ]
+    if: ${{ needs.set-version.outputs.release == 'true' }}
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: write          # Upload SBOM to GitHub
+      packages: write          # Push to Container Registry
+      attestations: write      # Upload attestations
+    with:
+      version: ${{ needs.set-version.outputs.version }}
+      container-file: ${{ inputs.container-file }}
+      container-name: ${{ inputs.container-name }}
+      sbom: ${{ inputs.sbom }}

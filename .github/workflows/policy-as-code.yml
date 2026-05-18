@@ -1,0 +1,22 @@
+name: Policy as Code
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: read
+
+    steps:
+      - name: Policy as Code
+        id: policy-as-code
+        uses: advanced-security/policy-as-code@main
+        with:
+          policy: advanced-security/reusable-workflows
+          policy-path: security/default.yml
+          policy-branch: main

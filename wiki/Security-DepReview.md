@@ -9,6 +9,6 @@ Making Dependency Review easy for your projects to use and maintain.
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/dependency-review.yml@main
+uses: advanced-security/reusable-workflows/.github/workflows/dependency-review.yml@v0.2.0
 secrets: inherit
 ```

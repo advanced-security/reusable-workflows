@@ -1,0 +1,45 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+name: Security - Opengrep
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Download / Install Opengrep"
+        run: |
+          set -e
+          echo "[+] Fetching latest Opengrep release information"
+          API_URL="https://api.github.com/repos/opengrep/opengrep/releases/latest"
+          ASSET_NAME="opengrep_manylinux_x86"
+          DOWNLOAD_URL=$(curl -s $API_URL | jq -r ".assets[] | select(.name==\"${ASSET_NAME}\") | .browser_download_url")
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Could not find download URL for $ASSET_NAME"
+            exit 1
+          fi
+          echo "[+] Downloading Opengrep from $DOWNLOAD_URL"
+          curl -sSfL -o "/usr/local/bin/opengrep" "$DOWNLOAD_URL"
+          chmod +x /usr/local/bin/opengrep
+          echo "[+] Finished installing opengrep"
+    
+      - name: "Run Opengrep"
+        run: opengrep scan --sarif-output ./results.sarif .
+
+      - name: "Upload SARIF file"
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+        if: always()

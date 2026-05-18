@@ -1,0 +1,99 @@
+name: Container Build and Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Semantic version of the image"
+        required: true
+        type: string
+
+      container-file:
+        description: "Path to the Dockerfile"
+        type: string
+        default: "Dockerfile"
+
+      container-name:
+        description: "Name of the container"
+        type: string
+        default: "${{ github.repository }}"
+
+      sbom:
+        description: "Generate and upload SBOM"
+        type: string
+        default: "true"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ inputs.container-name }}
+
+jobs:
+  publish-image:
+    runs-on: ubuntu-latest
+
+    permissions:
+      # to upload SBOM
+      id-token: write
+      contents: write
+      packages: write          # to upload Docker image
+      attestations: write      # Upload attestations
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Container Metadata
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # latest / main
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            # SemVer
+            type=semver,pattern={{version}},value=${{ inputs.version }}
+            type=semver,pattern=v{{version}},value=${{ inputs.version }}
+            type=semver,pattern=v{{major}},value=${{ inputs.version }}
+            type=semver,pattern=v{{major}}.{{minor}},value=${{ inputs.version }}
+    
+      - name: Build & Publish Container ${{ env.IMAGE_NAME }}
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        id: build
+        with:
+          file: "${{ inputs.container-file }}"
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # SBOM Settings
+          sbom: true
+
+      # Upload Software Bill of Materials (SBOM) to GitHub
+      - name: Upload SBOM
+        uses: advanced-security/spdx-dependency-submission-action@169d22427d74f3faf93504e70b03eede8dab272a  # v0.2.0
+        with:
+          filePath: '.'
+          filePattern: '*.spdx.json'
+
+      # Build provenance attestations
+      - name: Attest Container Image
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      # - name: Attest Container SBOM
+      #   uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+      #   with:
+      #     subject-path:: '*.spdx.json'
