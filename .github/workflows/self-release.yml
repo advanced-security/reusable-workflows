@@ -25,6 +25,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      workflows: write  # Required: patch-release-me modifies workflow files
     steps:
       - name: "Checkout"
         uses: actions/checkout@v6
