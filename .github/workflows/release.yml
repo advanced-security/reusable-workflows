@@ -17,6 +17,11 @@ on:
         description: "The version to release"
         required: true
         type: string
+      prerelease:
+        description: "Create as a pre-release (skips major/minor tag updates)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release-next:
@@ -52,7 +57,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     # If the workflow was triggered by a workflow call and the version is not null
-    if: ${{ github.event_name == 'workflow_call' && github.event.inputs.version != null }}
+    if: ${{ github.event_name == 'workflow_call' && inputs.version != '' }}
 
     permissions:
       contents: write
@@ -69,19 +74,41 @@ jobs:
       - name: "GitHub Release"
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}
+          MAJOR_TAG: v${{ steps.version.outputs.major }}
+          MINOR_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-          git tag "${{ steps.version.outputs.version }}" --force
-          git tag "v${{ steps.version.outputs.major }}" --force
-          git tag "v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}" --force
-          git tag "v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}" --force
+          git tag "$VERSION_TAG" --force
+
+          # Only update major/minor floating tags for full releases
+          if [ "$PRERELEASE" != "true" ]; then
+            git tag "$MAJOR_TAG" --force
+            git tag "$MINOR_TAG" --force
+          fi
 
           git push origin ${{ github.ref_name }}
           git push origin --tags --force
 
-          gh release create --latest --generate-notes \
-            --title "v${{ steps.version.outputs.version }}" \
-            "${{ steps.version.outputs.version }}"
+          # Create or update the release (supports promotion from prerelease)
+          if gh release view "$VERSION_TAG" > /dev/null 2>&1; then
+            echo "Release $VERSION_TAG exists — updating"
+            if [ "$PRERELEASE" = "true" ]; then
+              gh release edit "$VERSION_TAG" --prerelease --title "$VERSION_TAG"
+            else
+              gh release edit "$VERSION_TAG" --latest --prerelease=false --title "$VERSION_TAG"
+            fi
+          else
+            echo "Creating release $VERSION_TAG"
+            RELEASE_FLAGS="--generate-notes --title $VERSION_TAG"
+            if [ "$PRERELEASE" = "true" ]; then
+              RELEASE_FLAGS="$RELEASE_FLAGS --prerelease"
+            else
+              RELEASE_FLAGS="$RELEASE_FLAGS --latest"
+            fi
+            gh release create $RELEASE_FLAGS "$VERSION_TAG"
+          fi
       
