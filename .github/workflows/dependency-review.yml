@@ -8,6 +8,17 @@ name: 'Dependency Review'
 on:
   pull_request:
   workflow_call:
+    inputs:
+      retry-on-snapshot-warnings:
+        description: 'Enable or disable retrying the action every 10 seconds while waiting for dependency submission actions to complete.'
+        type: boolean
+        required: false
+        default: true
+      retry-on-snapshot-warnings-timeout:
+        description: 'Maximum amount of time (in seconds) to retry the action while waiting for dependency submission actions to complete.'
+        type: number
+        required: false
+        default: 120
 
 permissions:
   contents: read
@@ -49,3 +60,5 @@ jobs:
           # Example: advanced-security/reusable-workflows/.github/dependency-review.yml@v0.1.0
           config-file: ${{ steps.config.outputs.config }}
           comment-summary-in-pr: "always"
+          retry-on-snapshot-warnings: ${{ inputs.retry-on-snapshot-warnings || false }}
+          retry-on-snapshot-warnings-timeout: ${{ inputs.retry-on-snapshot-warnings-timeout || 120 }}
