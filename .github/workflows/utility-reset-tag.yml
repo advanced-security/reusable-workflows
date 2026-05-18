@@ -30,6 +30,8 @@ jobs:
           TAG_NAME: ${{ inputs.tag }}
           TARGET_SHA: ${{ inputs.commit }}
         run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           echo "Resetting tag $TAG_NAME to commit $TARGET_SHA"
           git log --oneline -1 "$TARGET_SHA"
           git tag -fa "$TAG_NAME" "$TARGET_SHA" -m "$TAG_NAME"
