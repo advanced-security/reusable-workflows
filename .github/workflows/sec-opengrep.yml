@@ -20,20 +20,36 @@ jobs:
         uses: actions/checkout@v6
 
       - name: "Download / Install Opengrep"
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          echo "[+] Fetching latest Opengrep release information"
-          API_URL="https://api.github.com/repos/opengrep/opengrep/releases/latest"
           ASSET_NAME="opengrep_manylinux_x86"
-          DOWNLOAD_URL=$(curl -s $API_URL | jq -r ".assets[] | select(.name==\"${ASSET_NAME}\") | .browser_download_url")
+
+          # Fetch latest release metadata and extract download URL + digest
+          RELEASE_JSON=$(gh api repos/opengrep/opengrep/releases/latest)
+          DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name==\"${ASSET_NAME}\") | .browser_download_url")
+          EXPECTED_SHA=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name==\"${ASSET_NAME}\") | .digest" | sed 's/sha256://')
+          VERSION=$(echo "$RELEASE_JSON" | jq -r ".tag_name")
+
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-            echo "Could not find download URL for $ASSET_NAME"
+            echo "::error::Could not find download URL for $ASSET_NAME"
             exit 1
           fi
-          echo "[+] Downloading Opengrep from $DOWNLOAD_URL"
+
+          echo "[+] Downloading Opengrep ${VERSION} from $DOWNLOAD_URL"
           curl -sSfL -o "/usr/local/bin/opengrep" "$DOWNLOAD_URL"
+
+          # Verify integrity against API-reported digest
+          ACTUAL_SHA=$(sha256sum /usr/local/bin/opengrep | awk '{print $1}')
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::SHA256 mismatch! Expected: $EXPECTED_SHA, Got: $ACTUAL_SHA"
+            exit 1
+          fi
+          echo "[+] SHA256 verified: $ACTUAL_SHA"
+
           chmod +x /usr/local/bin/opengrep
-          echo "[+] Finished installing opengrep"
+          echo "[+] Finished installing opengrep ${VERSION}"
     
       - name: "Run Opengrep"
         run: opengrep scan --sarif-output ./results.sarif .
