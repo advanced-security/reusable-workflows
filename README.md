@@ -1,6 +1,8 @@
 <div align="center">
 <h1>reusable-workflows</h1>
 
+<!-- Dependency submission now integrates with dependency review via snapshot waiting -->
+
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)][github]
 [![GitHub Issues](https://img.shields.io/github/issues/advanced-security/reusable-workflows?style=for-the-badge)][github-issues]
 [![GitHub Stars](https://img.shields.io/github/stars/advanced-security/reusable-workflows?style=for-the-badge)][github]
