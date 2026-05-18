@@ -38,8 +38,6 @@ on:
         type: boolean
         default: false
 
-permissions: read-all
-
 jobs:
   actions:
     name: Actions Dependencies
