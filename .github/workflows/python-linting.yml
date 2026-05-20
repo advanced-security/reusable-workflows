@@ -15,6 +15,10 @@ on:
         type: string
         # All Major versions of Python that are currently supported
         default: '3.9,3.10,3.11,3.12,3.13'
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 permissions:
   contents: read
@@ -64,8 +68,8 @@ jobs:
               python -m pip install --upgrade pip pipenv
               pipenv sync -d
           elif [[ -f requirements.txt ]]; then
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
               make install
           else
@@ -78,12 +82,15 @@ jobs:
         run: |
           set -e
           if [[ "$TOOL" == "ruff" ]]; then
-              pip install ruff
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
               ruff check
           elif [[ "$TOOL" == "flake8" ]]; then
-              pip install flake8
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
               flake8 .
           elif [[ "$TOOL" == "black" ]]; then
-              pip install black
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
               black --check .
           fi

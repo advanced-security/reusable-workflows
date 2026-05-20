@@ -9,6 +9,10 @@ on:
         type: string
         # All Major versions of Python that are currently supported
         default: '3.11'
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 permissions:
   contents: write
@@ -33,7 +37,8 @@ jobs:
           set -e
 
           if [[ -f .release.yml ]]; then
-            pip install yq
+            python -m pip install --upgrade uv
+            uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
             current_version=$(cat .release.yml | yq -r ".version")
           elif [[ -f pyproject.toml ]]; then
             current_version=$(grep -oP '^version = "(.*)"$' pyproject.toml | cut -d '"' -f 2)

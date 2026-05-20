@@ -12,6 +12,12 @@ on:
           - patch
           - minor
           - major
+  workflow_call:
+    inputs:
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 permissions:
   contents: write
@@ -65,7 +71,8 @@ jobs:
         run: |
           set -e
 
-          pip install yq
+          python -m pip install --upgrade uv
+          uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days || 3 }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
 
           current_version=$(cat .release.yml | yq -r ".version")
           released_version=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/releases/latest | jq -r ".tag_name")

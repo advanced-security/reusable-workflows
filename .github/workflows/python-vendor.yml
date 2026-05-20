@@ -13,6 +13,10 @@ on:
         type: string
         # All Major versions of Python that are currently supported
         default: '3.11'
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 permissions:
   contents: write

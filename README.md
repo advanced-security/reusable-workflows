@@ -16,6 +16,22 @@ This repository contains a number of Reusable [GitHub Actions][github-actions] W
 
 [Checkout the Wiki for more information on each workflow.][github-wiki].
 
+## Inputs
+
+### `cooldown-days`
+
+Available on all Python workflows (`python-build.yml`, `python-linting.yml`, `python-release.yml`, `python-testing.yml`, `python-vendor.yml`) as well as `container.yml` and `self-release.yml`.
+
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cooldown-days` | `number` | `3` | Number of days to use as the dependency cooldown window. Packages published more recently than this threshold are excluded from installs, ensuring only stabilised releases are used. |
+
+Internally the workflows pass `--exclude-newer "$(date -u -d "<cooldown-days> days ago" +%Y-%m-%dT%H:%M:%SZ)"` to `uv pip sync`.  For hash-pinned installs the `--require-hashes` flag is also applied; callers should generate a hash-pinned `requirements.txt` using:
+
+```bash
+uv pip compile requirements.in --generate-hashes -o requirements.txt
+```
+
 ## Maintainers / Contributors
 
 - Advanced Security OSS Maintainers Team
