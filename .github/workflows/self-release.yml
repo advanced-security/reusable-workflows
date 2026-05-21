@@ -62,10 +62,12 @@ jobs:
 
       - name: "Fetch Release"
         id: version-changes
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
 
-          pip install yq
+          pip install yq > /dev/null
 
           current_version=$(cat .release.yml | yq -r ".version")
           released_version=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/releases/latest | jq -r ".tag_name")
@@ -73,11 +75,16 @@ jobs:
           # Strip leading 'v' prefix for comparison (tags use v0.2.0, .release.yml uses 0.2.0)
           released_version="${released_version#v}"
 
+          echo "📋 Version source: .release.yml"
+          echo "   Current version: $current_version"
+          echo "   Latest release:  $released_version"
+
           if [[ "$current_version" == "NA" || "$current_version" == "$released_version" ]]; then
-            echo "No new release found"
+            echo "✅ No new release needed — versions match"
             echo "release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "New release found"
+            echo "🚀 New release detected: $current_version (latest release is $released_version)"
+            echo "::notice::Release v$current_version will be created. Version is controlled by .release.yml in this repository. To change the target version, update the 'version' field in .release.yml."
             echo "version=$current_version" >> "$GITHUB_OUTPUT"
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
