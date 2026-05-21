@@ -28,4 +28,4 @@ jobs:
         if: steps.changes.outputs.src == 'true'
         run: |
           npm ci
-          npx markdownlint '**.md' --ignore node_modules --disable MD013
+          npx markdownlint '**.md' --ignore node_modules

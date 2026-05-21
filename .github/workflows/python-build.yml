@@ -52,6 +52,8 @@ jobs:
       
       - name: Install dependencies
         if: ${{ github.event.inputs.install == 'true' }}
+        env:
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           if [[ -f Pipfile ]]; then
@@ -59,7 +61,7 @@ jobs:
             pipenv sync -d
           elif [[ -f requirements.txt ]]; then
             python -m pip install --upgrade uv
-            uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
             make install
           else

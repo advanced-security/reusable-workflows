@@ -33,12 +33,13 @@ jobs:
         id: check_release
         env:
           GH_TOKEN: ${{ github.token }}
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
 
           if [[ -f .release.yml ]]; then
             python -m pip install --upgrade uv
-            uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
             current_version=$(cat .release.yml | yq -r ".version")
           elif [[ -f pyproject.toml ]]; then
             current_version=$(grep -oP '^version = "(.*)"$' pyproject.toml | cut -d '"' -f 2)

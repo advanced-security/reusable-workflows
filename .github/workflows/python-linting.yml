@@ -59,6 +59,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       
       - name: Install dependencies
+        env:
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           if [[ -f pyproject.toml ]]; then
@@ -69,7 +71,7 @@ jobs:
               pipenv sync -d
           elif [[ -f requirements.txt ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
               make install
           else
@@ -79,18 +81,19 @@ jobs:
       - name: Run linting
         env:
           TOOL: ${{ inputs.tool }}
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           if [[ "$TOOL" == "ruff" ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
               ruff check
           elif [[ "$TOOL" == "flake8" ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
               flake8 .
           elif [[ "$TOOL" == "black" ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
               black --check .
           fi

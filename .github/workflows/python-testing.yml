@@ -53,6 +53,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
+        env:
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           echo "Installing dependencies..."
@@ -64,7 +66,7 @@ jobs:
               pipenv sync -d
           elif [[ -f requirements.txt ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "${{ inputs.cooldown-days }} days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
               make install
           else
