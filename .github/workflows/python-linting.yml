@@ -84,16 +84,15 @@ jobs:
           COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
-          if [[ "$TOOL" == "ruff" ]]; then
+          EXCLUDE_NEWER="$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+          if [[ -f requirements.txt ]]; then
               python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+              uv pip sync requirements.txt --exclude-newer "$EXCLUDE_NEWER"
+          fi
+          if [[ "$TOOL" == "ruff" ]]; then
               ruff check
           elif [[ "$TOOL" == "flake8" ]]; then
-              python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
               flake8 .
           elif [[ "$TOOL" == "black" ]]; then
-              python -m pip install --upgrade uv
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
               black --check .
           fi

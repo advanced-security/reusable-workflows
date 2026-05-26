@@ -60,7 +60,7 @@ jobs:
             python -m pip install --upgrade pip pipenv
             pipenv sync -d
           elif [[ -f requirements.txt ]]; then
-            python -m pip install --upgrade uv
+            python -m pip install "uv==0.11.16"
             uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
             make install

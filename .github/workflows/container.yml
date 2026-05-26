@@ -74,7 +74,11 @@ jobs:
 
           if [[ -f .release.yml ]]; then
             python -m pip install --upgrade uv
-            uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            if [[ -f requirements.txt ]]; then
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            else
+              uv pip install yq --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            fi
             current_version=$(yq -r ".version" .release.yml)
             echo "Current Version :: $current_version"  
 
