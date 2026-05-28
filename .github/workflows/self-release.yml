@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: "Patch Release Me"
-        uses: 42ByteLabs/patch-release-me@6cd166a460bc205b93c29acb6fef2aa275dc0502 # 0.6.5
+        uses: 42ByteLabs/patch-release-me@04ea0a696abfc3cfbdfadb279bd9c9dd0b1652a2 # 0.6.5
         with:
           mode: ${{ github.event.inputs.bump }}
 
@@ -69,6 +69,7 @@ jobs:
       - name: "Fetch Release"
         id: version-changes
         env:
+<<<<<<< HEAD
           COOLDOWN_DAYS: ${{ inputs.cooldown-days || 3 }}
         run: |
           set -e
@@ -79,6 +80,13 @@ jobs:
           else
             uv pip install yq --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           fi
+=======
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          pip install yq > /dev/null
+>>>>>>> origin/main
 
           current_version=$(cat .release.yml | yq -r ".version")
           released_version=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/releases/latest | jq -r ".tag_name")
@@ -86,11 +94,16 @@ jobs:
           # Strip leading 'v' prefix for comparison (tags use v0.2.0, .release.yml uses 0.2.0)
           released_version="${released_version#v}"
 
+          echo "📋 Version source: .release.yml"
+          echo "   Current version: $current_version"
+          echo "   Latest release:  $released_version"
+
           if [[ "$current_version" == "NA" || "$current_version" == "$released_version" ]]; then
-            echo "No new release found"
+            echo "✅ No new release needed — versions match"
             echo "release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "New release found"
+            echo "🚀 New release detected: $current_version (latest release is $released_version)"
+            echo "::notice::Release v$current_version will be created. Version is controlled by .release.yml in this repository. To change the target version, update the 'version' field in .release.yml."
             echo "version=$current_version" >> "$GITHUB_OUTPUT"
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
