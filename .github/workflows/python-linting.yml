@@ -15,6 +15,10 @@ on:
         type: string
         # All Major versions of Python that are currently supported
         default: '3.9,3.10,3.11,3.12,3.13'
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 permissions:
   contents: read
@@ -55,6 +59,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       
       - name: Install dependencies
+        env:
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           if [[ -f pyproject.toml ]]; then
@@ -64,8 +70,8 @@ jobs:
               python -m pip install --upgrade pip pipenv
               pipenv sync -d
           elif [[ -f requirements.txt ]]; then
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
               make install
           else
@@ -75,15 +81,18 @@ jobs:
       - name: Run linting
         env:
           TOOL: ${{ inputs.tool }}
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
+          EXCLUDE_NEWER="$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+          if [[ -f requirements.txt ]]; then
+              python -m pip install --upgrade uv
+              uv pip sync requirements.txt --exclude-newer "$EXCLUDE_NEWER"
+          fi
           if [[ "$TOOL" == "ruff" ]]; then
-              pip install ruff
               ruff check
           elif [[ "$TOOL" == "flake8" ]]; then
-              pip install flake8
               flake8 .
           elif [[ "$TOOL" == "black" ]]; then
-              pip install black
               black --check .
           fi
