@@ -1,0 +1,8 @@
+{
+  "name": "reusable-workflows",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "markdownlint-cli": "^0.44.0"
+  }
+}

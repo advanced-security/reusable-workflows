@@ -19,6 +19,10 @@ on:
         description: 'Run linters'
         type: string
         default: 'false'
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
 
 jobs:
   build:
@@ -48,14 +52,16 @@ jobs:
       
       - name: Install dependencies
         if: ${{ github.event.inputs.install == 'true' }}
+        env:
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
           if [[ -f Pipfile ]]; then
             python -m pip install --upgrade pip pipenv
             pipenv sync -d
           elif [[ -f requirements.txt ]]; then
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
+            python -m pip install "uv==0.11.16"
+            uv pip sync requirements.txt --require-hashes --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
           elif [[ -f Makefile ]]; then
             make install
           else

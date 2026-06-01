@@ -42,6 +42,11 @@ on:
         type: string
         default: "latest"
 
+      cooldown-days:
+        description: 'Number of days to use as the dependency cooldown window (excludes packages newer than N days)'
+        type: number
+        default: 3
+
 env:
   REGISTRY: ghcr.io
 
@@ -63,11 +68,17 @@ jobs:
         id: set-version
         env:
           GH_TOKEN: ${{ github.token }}
+          COOLDOWN_DAYS: ${{ inputs.cooldown-days }}
         run: |
           set -e
 
           if [[ -f .release.yml ]]; then
-            pip install yq
+            python -m pip install --upgrade uv
+            if [[ -f requirements.txt ]]; then
+              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            else
+              uv pip install yq --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
+            fi
             current_version=$(yq -r ".version" .release.yml)
             echo "Current Version :: $current_version"  
 
