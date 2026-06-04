@@ -37,7 +37,7 @@ jobs:
     # cannot modify workflow files. Pass a custom token via secrets if needed.
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: "Patch Release Me"
         uses: 42ByteLabs/patch-release-me@04ea0a696abfc3cfbdfadb279bd9c9dd0b1652a2 # 0.6.5
@@ -64,7 +64,7 @@ jobs:
       version: ${{ steps.version-changes.outputs.version }}
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: "Fetch Release"
         id: version-changes

@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
       - name: "Get and Set version"
         id: set-version
         env:

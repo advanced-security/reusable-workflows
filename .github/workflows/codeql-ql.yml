@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: "Set up Rust"
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9   # v1.85.1
@@ -111,7 +111,7 @@ jobs:
           mv updated_sarif.sarif ${{ steps.run_ql.outputs.sarif }}
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v4.36.0
         with:
           sarif_file: ${{ steps.run_ql.outputs.sarif }}
           category: "/codeql:ql"

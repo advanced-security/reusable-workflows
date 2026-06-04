@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 'Checkout Repository'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       # [optional] This setup isn't required but if your repository have a configuration,
       # we use that versus the centralised config. 
