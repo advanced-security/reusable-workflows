@@ -18,16 +18,16 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Set up Rust"
-        uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9   # v1.85.1
+        uses: dtolnay/rust-toolchain@67ef31d5b988238dd797d409d6f9574278e20537   # v1.85.1
         with:
           toolchain: stable
 
       - name: "Restore cached Cargo"
         id: cache-restore
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v5.0.5
         with:
           path: |
             ~/.cargo/bin/
@@ -119,7 +119,7 @@ jobs:
       - name: Save Cargo / Rust Cache 
         id: cache-save
         if: ${{ github.event_name == 'push' }}
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v5.0.5
         with:
           path: |
             ~/.cargo/bin/
