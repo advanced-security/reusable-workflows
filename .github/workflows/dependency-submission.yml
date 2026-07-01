@@ -47,7 +47,7 @@ jobs:
       contents: write # Required for dependency submission API
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
 
       - name: Detect action repository
         id: detect
@@ -70,7 +70,7 @@ jobs:
 
       - name: Submit Actions dependencies
         if: steps.detect.outputs.is-action-repo == 'true' || steps.detect.outputs.has-workflows == 'true'
-        uses: jessehouwing/actions-dependency-submission@19481049f19a8b6d54adbde7c323de5184b8bab5 # v1
+        uses: jessehouwing/actions-dependency-submission@d4ed9fd03b1c91e31a62d9a4095440128ec1316b # v1
         with:
           token: ${{ github.token }}
           additional-paths: ${{ inputs.actions-additional-paths }}
