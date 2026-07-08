@@ -4,7 +4,7 @@
 
 Lint markdown files in your repository using [`markdownlint-cli`](https://github.com/igorshubovych/markdownlint-cli).
 
-The workflow only runs when a pull request modifies `**.md` files.
+The workflow only runs when a pull request modifies `**/*.md` files.
 
 ## Usage
 
@@ -21,7 +21,7 @@ The `MD013` (line-length) rule is disabled by default to avoid failures in repos
 
 ## Customising rules
 
-To override or extend the default rules, add a `.markdownlint.json` (or `.markdownlint-cli2.jsonc`) file at the root of your repository. `markdownlint-cli` picks this up automatically.
+To override or extend the default rules, add a `.markdownlint.json` file at the root of your repository. `markdownlint-cli` picks this up automatically. Note that `MD013` remains disabled by the workflow's `--disable MD013` flag regardless of your config file.
 
 Example `.markdownlint.json` to also disable the `MD033` (inline HTML) rule:
 
