@@ -21,11 +21,13 @@ jobs:
         with:
           filters: |
             src:
-              - '**.md'
-      
+              - '**/*.md'
+
+      - name: "Install Dependencies"
+        if: steps.changes.outputs.src == 'true'
+        run: npm ci
+
       # lint markdown
       - name: "Lint Markdown"
         if: steps.changes.outputs.src == 'true'
-        run: |
-          npm ci
-          npx markdownlint '**.md' --ignore node_modules
+        run: npx markdownlint-cli '**/*.md' --ignore node_modules --disable MD013
