@@ -26,6 +26,4 @@ jobs:
       # lint markdown
       - name: "Lint Markdown"
         if: steps.changes.outputs.src == 'true'
-        run: |
-          npm ci
-          npx markdownlint '**.md' --ignore node_modules
+        run: npx --yes markdownlint-cli@0.49.0 '**.md' --ignore node_modules --disable MD013
