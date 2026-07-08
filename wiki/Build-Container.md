@@ -10,6 +10,10 @@ This workflow does the following:
 - Build and push the container image
 - Generate a SBOM (Software Bill of Materials) for the container image and upload them to GitHub
 
+## Version Format
+
+When using the auto-release detection in this workflow, the version in `.release.yml` must be in unprefixed format (e.g. `1.2.3`), not `v1.2.3`. GitHub Release tags use a `v` prefix (e.g. `v1.2.3`), but the `v` is automatically stripped when comparing against the version file.
+
 ## Usage
 
 **Simple:**

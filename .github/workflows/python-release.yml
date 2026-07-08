@@ -39,12 +39,7 @@ jobs:
 
           if [[ -f .release.yml ]]; then
             python -m pip install --upgrade uv
-            if [[ -f requirements.txt ]]; then
-              uv pip sync requirements.txt --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
-            else
-              uv pip install yq --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)"
-            fi
-            current_version=$(cat .release.yml | yq -r ".version")
+            current_version=$(uv tool run --from yq --exclude-newer "$(date -u -d "$COOLDOWN_DAYS days ago" +%Y-%m-%dT%H:%M:%SZ)" yq -r ".version" .release.yml)
           elif [[ -f pyproject.toml ]]; then
             current_version=$(grep -oP '^version = "(.*)"$' pyproject.toml | cut -d '"' -f 2)
           elif [[ -f setup.py ]]; then
@@ -55,6 +50,9 @@ jobs:
           fi
 
           released_version=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/:owner/:repo/releases/latest | jq -r ".tag_name")
+
+          # Strip leading 'v' prefix for comparison (tags use v0.2.0, .release.yml uses 0.2.0)
+          released_version="${released_version#v}"
 
           if [[ "$current_version" == "NA" || "$current_version" == "$released_version" ]]; then
             echo "No new release found"
