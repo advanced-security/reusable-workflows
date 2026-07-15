@@ -66,6 +66,6 @@ jobs:
           path: ${{ steps.scan.outputs.sarif }}
 
       - name: Upload vulnerability report
-        uses: github/codeql-action/upload-sarif@v4.36.3
+        uses: github/codeql-action/upload-sarif@v4.37.0
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
