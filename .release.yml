@@ -4,7 +4,12 @@ version: "0.3.5"
 locations:
   - name: "Actions Versions"
     paths:
-      - '.github/workflows/*.yml'
+      # NOTE: '.github/workflows/*.yml' is intentionally excluded here.
+      # GITHUB_TOKEN can never push changes to files under .github/workflows/
+      # (GitHub blocks this regardless of the `permissions:` block granted to
+      # the token), so including it causes the release-next job's
+      # create-pull-request push to fail with "refusing to allow a GitHub App
+      # to create or update workflow ... without `workflows` permission".
       - 'wiki/*.md'
     patterns:
       # Actions
