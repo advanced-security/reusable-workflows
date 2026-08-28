@@ -42,9 +42,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: "Patch Release Me"
-        uses: 42ByteLabs/patch-release-me@2ba23d0d4e723747b7d4b288646b1b8fdde09374 # 0.6.7
+        # TODO: Return to the upstream action after its runtime image is digest-pinned:
+        # https://github.com/42ByteLabs/patch-release-me/issues/169
+        uses: docker://ghcr.io/42bytelabs/patch-release-me:0.6.7@sha256:b9624359ce08707dfb4d22bcbf9d1a75f7f4718ccec610ddaa62280ffea98958
         with:
-          mode: ${{ github.event.inputs.bump }}
+          args: bump -m ${{ github.event.inputs.bump }}
 
       - name: "Create Release PR"
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
