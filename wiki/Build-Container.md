@@ -19,7 +19,7 @@ When using the auto-release detection in this workflow, the version in `.release
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.3.6
+uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.4.0
 secrets: inherit
 with:
   # This is used for tagging the container image.
@@ -30,7 +30,7 @@ with:
 **With Settings:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.3.6
+uses: advanced-security/reusable-workflows/.github/workflows/container.yml@v0.4.0
 secrets: inherit
 with:
   # This is used for tagging the container image
