@@ -11,7 +11,7 @@ The workflow only runs when a pull request modifies `**/*.md` files.
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/markdown-lint.yml@v0.3.6
+uses: advanced-security/reusable-workflows/.github/workflows/markdown-lint.yml@v0.4.0
 secrets: inherit
 ```
 

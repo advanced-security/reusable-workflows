@@ -19,13 +19,13 @@ The Action will try to determine how to install, build, test, and lint your proj
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/python.yml@v0.3.6
+uses: advanced-security/reusable-workflows/.github/workflows/python.yml@v0.4.0
 ```
 
 **With Settings:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/python-build.yml@v0.3.6
+uses: advanced-security/reusable-workflows/.github/workflows/python-build.yml@v0.4.0
 with:
   install: true  # Install dependencies (default is true)
   build: false   # Build the project
