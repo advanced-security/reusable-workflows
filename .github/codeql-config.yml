@@ -11,6 +11,7 @@ paths-ignore:
 
   # JavaScript / TypeScript: package dependencies and generated build output
   - "**/node_modules/**"
+  - "**/bower_components/**"
   - "**/dist/**"
   - "**/build/**"
   - "**/coverage/**"
