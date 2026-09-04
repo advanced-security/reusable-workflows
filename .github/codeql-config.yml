@@ -2,6 +2,8 @@
 # See: gh.io/codeql-props 
 #  - Set custom property name:`github-codeql-config-file` to value: `remote=advanced-security/reusable-workflows@main:.github/codeql-config.yml` or simply `remote=reusable-workflows`
 
+name: "Repo ignore policy"
+
 paths-ignore:
   # Python: dependencies, examples, and tests
   - "vendor/**"
