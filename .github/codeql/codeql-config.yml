@@ -1,0 +1,42 @@
+# Exclude generated code, vendored dependencies, build artifacts, and test code
+# from CodeQL analysis where appropriate.
+
+paths-ignore:
+  # Python: dependencies, examples, and tests
+  - "vendor/**"
+  - "site-packages/**"
+  - "examples/**"
+  - "test/**"
+  - "tests/**"
+
+  # JavaScript / TypeScript: package dependencies and generated build output
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/CoverageResults/**"
+  - "**/.next/**"
+  - "**/.nuxt/**"
+
+  # JavaScript / TypeScript: test files
+  - "**/*.test.js"
+  - "**/*.test.jsx"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.js"
+  - "**/*.spec.jsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+
+  # Common vendored / third-party web dependencies
+  - "**/wwwroot/lib/**"
+  - "**/deps/**"
+  - "**/third_party/**"
+  - "**/vendor/**"
+  - "**/wp-includes/**"
+  - "**/wp-admin/**"
+
+  # Ruby: installed gems and test code
+  - "**/gems/**"
+  - "**/spec/**/*_spec.rb"
+  - "**/test/**/*_test.rb"
