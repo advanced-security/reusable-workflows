@@ -41,3 +41,17 @@ paths-ignore:
   - "**/gems/**"
   - "**/spec/**/*_spec.rb"
   - "**/test/**/*_test.rb"
+
+  # C# / .NET: unit tests, build output, packages, and test results
+  - "**/*Test.cs"
+  - "**/*Tests.cs"
+  - "**/*TestCase.cs"
+  - "**/Test/**"
+  - "**/Tests/**"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/bin/**"
+  - "**/obj/**"
+  - "**/TestResults/**"
+  - "**/packages/**"
+  - "**/.vs/**"
