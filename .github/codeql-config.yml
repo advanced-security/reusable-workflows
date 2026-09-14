@@ -1,6 +1,7 @@
 # Exclude generated code, vendored dependencies, build artifacts, and test code from CodeQL analysis where appropriate.
-# See: gh.io/codeql-props 
+# See: gh.io/codeql-props for details
 #  - Set custom property name:`github-codeql-config-file` to value: `remote=advanced-security/reusable-workflows@main:.github/codeql-config.yml` or simply `remote=reusable-workflows`
+#    - syntax is remote=OWNER/REPOSITORY@REF:FILEPATH   (all components of this syntax, except for the repository name, are optional)
 
 name: "Repo ignore policy"
 
