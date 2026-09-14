@@ -1,0 +1,48 @@
+name: CodeQL Health
+
+on:
+  workflow_call:
+    inputs:
+      fail-on:
+        description: Audit states that fail the workflow.
+        type: string
+        default: failing,stalled,stale,degraded,in-progress,not-configured
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: read
+
+jobs:
+  audit:
+    name: CodeQL setup audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install GHAS audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install advanced-security/gh-ghas-audit --pin v2.0.1
+
+      - name: Audit CodeQL setup
+        env:
+          FAIL_ON: ${{ inputs.fail-on || 'failing,stalled,stale,degraded,in-progress,not-configured' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          gh ghas-audit code-scanning --repository "$GITHUB_REPOSITORY" --scan-depth diagnostics --detailed --fail-on "$FAIL_ON" --format json --output audit.json --quiet
+          result=$?
+          jq -r '
+            def mark:
+              if . == "healthy" or . == "configured" or . == "success" or . == "current" or . == "complete" then "✅"
+              elif . == "in-progress" then "🟡"
+              else "❌"
+              end;
+            ["## CodeQL setup audit", "",
+             "| Repository | Overall | Configuration | Execution | Freshness | Coverage | Languages |",
+             "|---|---|---|---|---|---|---|",
+             (.repositories[] |
+               "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages | join(", ")) |"),
+             "", "**Fail on:** `\(env.FAIL_ON)`"] | .[]
+          ' audit.json >> "$GITHUB_STEP_SUMMARY" || exit $?
+          exit "$result"

@@ -17,6 +17,7 @@
 
 **Security:**
 
+- [CodeQL Health](https://github.com/advanced-security/reusable-workflows/wiki/Security-CodeQL-Health)
 - Dependency Review
 
 ***
