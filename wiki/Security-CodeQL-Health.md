@@ -16,6 +16,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      pull-requests: read
       security-events: read
     uses: advanced-security/reusable-workflows/.github/workflows/codeql-health.yml@main
 ```

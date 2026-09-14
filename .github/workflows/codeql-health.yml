@@ -12,6 +12,7 @@ on:
 permissions:
   actions: read
   contents: read
+  pull-requests: read
   security-events: read
 
 env:
@@ -45,6 +46,12 @@ jobs:
           set +e
           gh ghas-audit code-scanning --repository "$GITHUB_REPOSITORY" --scan-depth diagnostics --detailed --fail-on "$FAIL_ON" --format json --output audit.json --quiet
           result=$?
+          set -e
+          if [[ ! -s audit.json ]]; then
+            echo "## CodeQL setup audit"$'\n\n'"> [!CAUTION]"$'\n'"> The audit failed before producing a report." >> "$GITHUB_STEP_SUMMARY"
+            (( result == 0 )) && result=1
+            exit "$result"
+          fi
           jq -r '
             def mark:
               if . == "healthy" or . == "configured" or . == "success" or . == "current" or . == "complete" then "✅"
@@ -54,8 +61,15 @@ jobs:
             ["## CodeQL setup audit", "",
              "| Repository | Overall | Configuration | Execution | Freshness | Coverage | Languages |",
              "|---|---|---|---|---|---|---|",
-             (.repositories[] |
-               "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages | join(", ")) |"),
+             (.repositories[]? |
+               "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages // [] | join(", ")) |"),
+             "",
+             (if (.stats.incomplete // true) then "> [!CAUTION]\n> The audit report is incomplete." else empty end),
+             (.warnings[]? | "> [!WARNING]\n> \(.)"),
+             (.organizations[]? | select(.error) | "> [!CAUTION]\n> **\(.login):** \(.error)"),
              "", "**Fail on:** `\(env.FAIL_ON)`"] | .[]
-          ' audit.json >> "$GITHUB_STEP_SUMMARY" || exit $?
+          ' audit.json >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$(jq '.stats.incomplete // true' audit.json)" != false || "$(jq '.summary.total_repositories // 0' audit.json)" != 1 ]]; then
+            (( result == 0 )) && result=1
+          fi
           exit "$result"
