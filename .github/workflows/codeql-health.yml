@@ -14,6 +14,9 @@ permissions:
   contents: read
   security-events: read
 
+env:
+  GHAS_AUDIT_VERSION: v2.0.1
+
 jobs:
   audit:
     name: CodeQL setup audit
@@ -22,7 +25,17 @@ jobs:
       - name: Install GHAS audit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh extension install advanced-security/gh-ghas-audit --pin v2.0.1
+        run: gh extension install advanced-security/gh-ghas-audit --pin "$GHAS_AUDIT_VERSION"
+
+      - name: Check for GHAS audit updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if latest=$(gh release view --repo advanced-security/gh-ghas-audit --json tagName --jq .tagName); then
+            [[ "$latest" == "$GHAS_AUDIT_VERSION" ]] || echo "::warning title=ghas-audit update available::Pinned $GHAS_AUDIT_VERSION, latest $latest"
+          else
+            echo "::warning title=ghas-audit update check failed::Unable to determine the latest release"
+          fi
 
       - name: Audit CodeQL setup
         env:
