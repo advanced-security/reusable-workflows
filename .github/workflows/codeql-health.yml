@@ -68,7 +68,7 @@ jobs:
              (.warnings[]? | "> [!WARNING]\n> \(.)"),
              (.organizations[]? | select(.error) | "> [!CAUTION]\n> **\(.login):** \(.error)"),
              "", "**Fail on:** `\(env.FAIL_ON)`"] | .[]
-          ' audit.json >> "$GITHUB_STEP_SUMMARY"
+          ' audit.json | tee -a "$GITHUB_STEP_SUMMARY"
           if [[ "$(jq '.stats.incomplete // true' audit.json)" != false || "$(jq '.summary.total_repositories // 0' audit.json)" != 1 ]]; then
             (( result == 0 )) && result=1
           fi
