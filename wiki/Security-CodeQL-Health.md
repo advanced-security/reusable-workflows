@@ -13,12 +13,21 @@ on:
 
 jobs:
   codeql-health:
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
-      security-events: read
     uses: advanced-security/reusable-workflows/.github/workflows/codeql-health.yml@main
+    secrets:
+      GHAS_AUDIT_TOKEN: ${{ secrets.GHAS_AUDIT_TOKEN }}
 ```
 
 The default failure states are `failing`, `stalled`, `stale`, `degraded`, `in-progress`, and `not-configured`. Override them with the `fail-on` input.
+
+Configure `GHAS_AUDIT_TOKEN` as an organization Actions secret and make it available to each caller repository. The token needs access to the repository being audited with these read permissions:
+
+| Scope | Permission |
+| --- | --- |
+| Repository | Metadata |
+| Repository | Pull requests |
+| Repository | Actions |
+| Repository | Code scanning alerts |
+| Organization | Administration |
+
+Organization Administration access lets the audit verify the attached code security configuration and detect failed rollouts.

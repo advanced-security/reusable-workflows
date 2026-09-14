@@ -7,13 +7,14 @@ on:
         description: Audit states that fail the workflow.
         type: string
         default: failing,stalled,stale,degraded,in-progress,not-configured
+    secrets:
+      GHAS_AUDIT_TOKEN:
+        description: Token with GHAS audit read permissions.
+        required: true
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
-  pull-requests: read
-  security-events: read
 
 env:
   GHAS_AUDIT_VERSION: v2.0.1
@@ -41,8 +42,12 @@ jobs:
       - name: Audit CodeQL setup
         env:
           FAIL_ON: ${{ inputs.fail-on || 'failing,stalled,stale,degraded,in-progress,not-configured' }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GHAS_AUDIT_TOKEN }}
         run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error title=Missing GHAS audit token::Configure the GHAS_AUDIT_TOKEN Actions secret"
+            exit 1
+          fi
           set +e
           gh ghas-audit code-scanning --repository "$GITHUB_REPOSITORY" --scan-depth diagnostics --detailed --fail-on "$FAIL_ON" --format json --output audit.json --quiet
           result=$?
