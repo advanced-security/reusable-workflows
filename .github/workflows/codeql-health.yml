@@ -69,12 +69,12 @@ jobs:
              (.repositories[]? |
                "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages // [] | join(", ")) |"),
              "",
-             (if (.stats.incomplete // true) then "> [!CAUTION]\n> The audit report is incomplete." else empty end),
+             (if (.stats.incomplete != false) then "> [!CAUTION]\n> The audit report is incomplete." else empty end),
              (.warnings[]? | "> [!WARNING]\n> \(.)"),
              (.organizations[]? | select(.error) | "> [!CAUTION]\n> **\(.login):** \(.error)"),
              "", "**Fail on:** `\(env.FAIL_ON)`"] | .[]
           ' audit.json | tee -a "$GITHUB_STEP_SUMMARY"
-          if [[ "$(jq '.stats.incomplete // true' audit.json)" != false || "$(jq '.summary.total_repositories // 0' audit.json)" != 1 ]]; then
+          if ! jq -e '.stats.incomplete == false and .summary.total_repositories == 1' audit.json > /dev/null; then
             (( result == 0 )) && result=1
           fi
           exit "$result"
