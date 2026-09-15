@@ -10,9 +10,12 @@ on:
         type: string
         default: failing,stalled,stale,degraded,in-progress,not-configured
     secrets:
-      GHAS_AUDIT_TOKEN:
-        description: Token with GHAS audit read permissions.
-        required: true
+      GHAS_AUDIT_APP_ID:
+        description: GitHub App ID; defaults to ADVANCED_SECURITY_APP_ID.
+        required: false
+      GHAS_AUDIT_APP_KEY:
+        description: GitHub App private key; defaults to ADVANCED_SECURITY_APP_KEY.
+        required: false
   workflow_dispatch:
 
 permissions:
@@ -28,6 +31,15 @@ jobs:
     name: CodeQL setup audit
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GHAS audit token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.GHAS_AUDIT_APP_ID || secrets.ADVANCED_SECURITY_APP_ID }}
+          private-key: ${{ secrets.GHAS_AUDIT_APP_KEY || secrets.ADVANCED_SECURITY_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
       - name: Install GHAS audit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,12 +58,8 @@ jobs:
       - name: Audit CodeQL setup
         env:
           FAIL_ON: ${{ inputs.fail-on || 'failing,stalled,stale,degraded,in-progress,not-configured' }}
-          GH_TOKEN: ${{ secrets.GHAS_AUDIT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          if [[ -z "$GH_TOKEN" ]]; then
-            echo "::error title=Missing GHAS audit token::Configure the GHAS_AUDIT_TOKEN Actions secret"
-            exit 1
-          fi
           set +e
           gh ghas-audit code-scanning --repository "$GITHUB_REPOSITORY" --scan-depth diagnostics --detailed --fail-on "$FAIL_ON" --format json --output audit.json --quiet
           result=$?
