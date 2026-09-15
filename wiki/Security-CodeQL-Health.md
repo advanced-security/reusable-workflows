@@ -20,7 +20,9 @@ jobs:
 
 The default failure states are `failing`, `stalled`, `stale`, `degraded`, `in-progress`, and `not-configured`. Override them with the `fail-on` input.
 
-Configure `GHAS_AUDIT_TOKEN` as an organization Actions secret and make it available to each caller repository. The token needs access to the repository being audited with these read permissions:
+The workflow can also be selected directly by an organization ruleset. Ruleset runs use `pull_request` and `merge_group`; fork and Dependabot pull requests are intentionally skipped because GitHub does not expose Actions secrets to them.
+
+Configure `GHAS_AUDIT_TOKEN` as an organization or repository Actions secret. When using an organization secret, make it available to each target repository. The token needs access to the repository being audited with these read permissions:
 
 | Scope | Permission |
 | --- | --- |

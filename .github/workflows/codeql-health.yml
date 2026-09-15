@@ -1,6 +1,8 @@
 name: CodeQL Health
 
 on:
+  pull_request:
+  merge_group:
   workflow_call:
     inputs:
       fail-on:
@@ -21,6 +23,8 @@ env:
 
 jobs:
   audit:
+    # Skip secretless fork/Dependabot PRs; only consider pull_request_target while this workflow never executes PR code.
+    if: ${{ github.event_name != 'pull_request' || (github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: CodeQL setup audit
     runs-on: ubuntu-latest
     steps:
