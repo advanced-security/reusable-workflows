@@ -1,0 +1,66 @@
+name: Labeler - Dependabot
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  ENSURE_LABELS_EXIST: 'true' # Set to 'false' to skip label creation
+
+jobs:
+  label-dependabot:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs that have not already been labeled
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'dependabot-security-update') &&
+      !contains(github.event.pull_request.labels.*.name, 'dependabot-version-update')
+    steps:
+      # Ensure the custom labels exist before applying them.
+      # Skipped when ENSURE_LABELS_EXIST is 'false' (e.g. labels are managed centrally).
+      - name: Ensure labels exist
+        if: env.ENSURE_LABELS_EXIST == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = ['dependabot-security-update', 'dependabot-version-update'];
+            const existing = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const existingNames = existing.data.map(l => l.name);
+
+            for (const label of labels) {
+              if (!existingNames.includes(label)) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label
+                });
+                core.info(`Created label: ${label}`);
+              }
+            }
+
+      # Dependabot security update PRs are identified by two phrases in their body.
+      # Version update PRs never contain either phrase.
+      - name: Detect update type and apply label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const isSecurityUpdate = prBody.includes('[Security Alerts page]') ||
+              prBody.includes('You can disable automated security fix PRs');
+
+            const label = isSecurityUpdate ? 'dependabot-security-update' : 'dependabot-version-update';
+            core.info(`PR #${context.payload.pull_request.number} is ${isSecurityUpdate ? '' : 'not '}a security update — adding label: ${label}`);
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [label]
+            });
