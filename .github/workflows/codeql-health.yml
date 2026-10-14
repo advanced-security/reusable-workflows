@@ -1,27 +1,45 @@
 name: CodeQL Health
 
 on:
+  pull_request:
+  merge_group:
   workflow_call:
     inputs:
       fail-on:
         description: Audit states that fail the workflow.
         type: string
         default: failing,stalled,stale,degraded,in-progress,not-configured
+    secrets:
+      GHAS_AUDIT_APP_ID:
+        description: GitHub App ID; defaults to ADVANCED_SECURITY_APP_ID.
+        required: false
+      GHAS_AUDIT_APP_KEY:
+        description: GitHub App private key; defaults to ADVANCED_SECURITY_APP_KEY.
+        required: false
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
-  security-events: read
 
 env:
   GHAS_AUDIT_VERSION: v2.0.1
 
 jobs:
   audit:
+    # Skip secretless fork/Dependabot PRs; only consider pull_request_target while this workflow never executes PR code.
+    if: ${{ github.event_name != 'pull_request' || (github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository) }}
     name: CodeQL setup audit
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GHAS audit token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GHAS_AUDIT_APP_ID || secrets.ADVANCED_SECURITY_APP_ID }}
+          private-key: ${{ secrets.GHAS_AUDIT_APP_KEY || secrets.ADVANCED_SECURITY_APP_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
       - name: Install GHAS audit
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,11 +58,17 @@ jobs:
       - name: Audit CodeQL setup
         env:
           FAIL_ON: ${{ inputs.fail-on || 'failing,stalled,stale,degraded,in-progress,not-configured' }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set +e
           gh ghas-audit code-scanning --repository "$GITHUB_REPOSITORY" --scan-depth diagnostics --detailed --fail-on "$FAIL_ON" --format json --output audit.json --quiet
           result=$?
+          set -e
+          if [[ ! -s audit.json ]]; then
+            echo "## CodeQL setup audit"$'\n\n'"> [!CAUTION]"$'\n'"> The audit failed before producing a report." >> "$GITHUB_STEP_SUMMARY"
+            (( result == 0 )) && result=1
+            exit "$result"
+          fi
           jq -r '
             def mark:
               if . == "healthy" or . == "configured" or . == "success" or . == "current" or . == "complete" then "✅"
@@ -54,8 +78,15 @@ jobs:
             ["## CodeQL setup audit", "",
              "| Repository | Overall | Configuration | Execution | Freshness | Coverage | Languages |",
              "|---|---|---|---|---|---|---|",
-             (.repositories[] |
-               "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages | join(", ")) |"),
+             (.repositories[]? |
+               "| [\(.full_name)](\(.url)) | \(.status.overall | mark) `\(.status.overall)` | \(.status.configuration | mark) `\(.status.configuration)` | \(.status.execution | mark) `\(.status.execution)` | \(.status.freshness | mark) `\(.status.freshness)` | \(.status.coverage | mark) `\(.status.coverage)` | \(.configured_languages // [] | join(", ")) |"),
+             "",
+             (if (.stats.incomplete != false) then "> [!CAUTION]\n> The audit report is incomplete." else empty end),
+             (.warnings[]? | "> [!WARNING]\n> \(.)"),
+             (.organizations[]? | select(.error) | "> [!CAUTION]\n> **\(.login):** \(.error)"),
              "", "**Fail on:** `\(env.FAIL_ON)`"] | .[]
-          ' audit.json >> "$GITHUB_STEP_SUMMARY" || exit $?
+          ' audit.json | tee -a "$GITHUB_STEP_SUMMARY"
+          if ! jq -e '.stats.incomplete == false and .summary.total_repositories == 1' audit.json > /dev/null; then
+            (( result == 0 )) && result=1
+          fi
           exit "$result"
