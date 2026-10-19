@@ -3,7 +3,7 @@
 #  - Set custom property name:`github-codeql-config-file` to value: `remote=advanced-security/reusable-workflows@main:.github/codeql-config.yml` or simply `remote=reusable-workflows`
 #    - syntax is remote=OWNER/REPOSITORY@REF:FILEPATH   (all components of this syntax, except for the repository name, are optional)
 
-name: "Repo ignore policy"
+name: "Generated code ignore policy"
 
 paths-ignore:
   # Python: dependencies, examples, and tests
