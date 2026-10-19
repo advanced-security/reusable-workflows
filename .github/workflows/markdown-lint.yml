@@ -1,6 +1,7 @@
 name: Markdown Lint
 
 on:
+  merge_group:
   pull_request:
   workflow_call:
 
