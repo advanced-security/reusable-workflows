@@ -4,5 +4,10 @@
   "private": true,
   "devDependencies": {
     "markdownlint-cli": "^0.50.0"
+  },
+  "overrides": {
+    "micromark-extension-math": {
+      "katex": "0.18.2"
+    }
   }
 }
