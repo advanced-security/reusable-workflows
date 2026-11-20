@@ -244,6 +244,12 @@ jobs:
     needs: release
     # Only pin the README to a new Latest release that was made from the default branch
     if: ${{ inputs.update-readme-sha && !inputs.prerelease && needs.release.outputs.latest == 'true' && needs.release.outputs.from-default-branch == 'true' }}
+    # One README update at a time, so each one reads Latest after the previous one has finished.
+    # Release jobs stay outside this group. If GitHub cancels a pending README update because
+    # another one was queued, nothing is lost: every update pins whichever release is Latest.
+    concurrency:
+      group: reusable-workflows-readme-sha-${{ github.repository }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -258,17 +264,27 @@ jobs:
         id: readme
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION_TAG: ${{ needs.release.outputs.tag }}
+          DEFAULT_BRANCH: ${{ needs.release.outputs.default-branch }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
           # The commit that was tagged, not the default branch's current HEAD
           RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          # A newer release may have finished since this one, so only pin the current Latest release
-          LATEST_TAG=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
-          if [ "$LATEST_TAG" != "$VERSION_TAG" ]; then
-            echo "::notice::Skipping the README SHA update because $LATEST_TAG is now the Latest release."
-            exit 0
+          # Pin whichever release is Latest now, because a newer release may have finished since this one
+          VERSION_TAG=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [ "$VERSION_TAG" != "$RELEASE_TAG" ]; then
+            RELEASE_SHA=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$VERSION_TAG" --jq '.sha')
+            # "ahead" or "identical" means the default branch contains the Latest release's commit
+            STATUS=$(gh api "/repos/$GITHUB_REPOSITORY/compare/$RELEASE_SHA...$DEFAULT_BRANCH" --jq '.status')
+            if [ "$STATUS" != "ahead" ] && [ "$STATUS" != "identical" ]; then
+              echo "::notice::Skipping the README SHA update because the Latest release, $VERSION_TAG, wasn't made from $DEFAULT_BRANCH."
+              exit 0
+            fi
+            echo "::notice::Pinning the README to $VERSION_TAG, which is now the Latest release, instead of $RELEASE_TAG."
           fi
-          echo "update=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "update=true"
+            echo "tag=$VERSION_TAG"
+          } >> "$GITHUB_OUTPUT"
 
           REPO_NAME="${GITHUB_REPOSITORY}"
           echo "Release: $VERSION_TAG | SHA: $RELEASE_SHA | Repo: $REPO_NAME"
@@ -291,11 +307,11 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ github.token }}
-          commit-message: "docs: update README action SHA to ${{ needs.release.outputs.tag }}"
-          title: "docs: update README action SHA to ${{ needs.release.outputs.tag }}"
+          commit-message: "docs: update README action SHA to ${{ steps.readme.outputs.tag }}"
+          title: "docs: update README action SHA to ${{ steps.readme.outputs.tag }}"
           branch: chore/update-readme-sha
           base: ${{ needs.release.outputs.default-branch }}
           labels: documentation
           body: |
-            Automated PR to update the SHA-pinned action reference in README.md to match the latest release **${{ needs.release.outputs.tag }}**.
+            Automated PR to update the SHA-pinned action reference in README.md to match the latest release **${{ steps.readme.outputs.tag }}**.
 
