@@ -81,6 +81,10 @@ jobs:
     needs: resolve-version
     runs-on: ubuntu-latest
     if: ${{ needs.resolve-version.outputs.version != '' }}
+    # One release at a time per repository, so two runs can't both decide they're the Latest release
+    concurrency:
+      group: reusable-workflows-release-${{ github.repository }}
+      cancel-in-progress: false
 
     permissions:
       contents: write
@@ -222,11 +226,21 @@ jobs:
           ref: ${{ needs.release.outputs.default-branch }}
 
       - name: Update README with release SHA
+        id: readme
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION_TAG: ${{ needs.release.outputs.tag }}
           # The commit that was tagged, not the default branch's current HEAD
           RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
+          # A newer release may have finished since this one, so only pin the current Latest release
+          LATEST_TAG=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [ "$LATEST_TAG" != "$VERSION_TAG" ]; then
+            echo "::notice::Skipping the README SHA update because $LATEST_TAG is now the Latest release."
+            exit 0
+          fi
+          echo "update=true" >> "$GITHUB_OUTPUT"
+
           REPO_NAME="${GITHUB_REPOSITORY}"
           echo "Release: $VERSION_TAG | SHA: $RELEASE_SHA | Repo: $REPO_NAME"
 
@@ -244,6 +258,7 @@ jobs:
           git diff README.md
 
       - name: Create Pull Request
+        if: ${{ steps.readme.outputs.update == 'true' }}
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ github.token }}
