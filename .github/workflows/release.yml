@@ -20,7 +20,7 @@ on:
         type: boolean
         default: false
       update-readme-sha:
-        description: "Open a PR to update SHA-pinned action references in README.md"
+        description: "Open a PR to update SHA-pinned action references in README.md (only for a new Latest release made from the default branch)"
         required: false
         type: boolean
         default: false
@@ -85,6 +85,13 @@ jobs:
     permissions:
       contents: write
 
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      sha: ${{ steps.release.outputs.sha }}
+      latest: ${{ steps.target.outputs.latest }}
+      default-branch: ${{ steps.target.outputs.default-branch }}
+      from-default-branch: ${{ steps.target.outputs.from-default-branch }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
@@ -96,11 +103,58 @@ jobs:
         with:
           version: ${{ needs.resolve-version.outputs.version }}
 
-      # Tags :: ${Full}, v${Major}, v${Major}.${Minor}, v${Major}.${Minor}.${Patch}
-      - name: "GitHub Release"
+      # Only the highest published, non-prerelease version is marked "Latest", so a
+      # patch released from a maintenance branch doesn't replace a newer major version.
+      - name: Resolve release target
+        id: target
         env:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ inputs.prerelease }}
+          UPDATE_README_SHA: ${{ inputs.update-readme-sha }}
+          VERSION: ${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}
+        run: |
+          DEFAULT_BRANCH=$(gh api "/repos/$GITHUB_REPOSITORY" --jq '.default_branch')
+          FROM_DEFAULT_BRANCH=false
+          if [ "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH" ]; then
+            FROM_DEFAULT_BRANCH=true
+          fi
+
+          LATEST=false
+          if [ "$PRERELEASE" != "true" ]; then
+            # --jq runs once per page, so emit one version per line and sort across all pages
+            RELEASED_VERSIONS=$(gh api --paginate "/repos/$GITHUB_REPOSITORY/releases" \
+              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name | ltrimstr("v") | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))')
+            HIGHEST=$(printf '%s\n' "$RELEASED_VERSIONS" | sort -V | tail -n 1)
+            echo "Highest published release: ${HIGHEST:-none}"
+            if [ "$(printf '%s\n' "$HIGHEST" "$VERSION" | sort -V | tail -n 1)" = "$VERSION" ]; then
+              LATEST=true
+            else
+              echo "::notice::v$VERSION is lower than v$HIGHEST, so it won't be marked as the Latest release."
+            fi
+          fi
+
+          echo "Ref: $GITHUB_REF | Default branch: $DEFAULT_BRANCH | Latest: $LATEST"
+          if [ "$UPDATE_README_SHA" = "true" ] && [ "$PRERELEASE" != "true" ]; then
+            if [ "$FROM_DEFAULT_BRANCH" != "true" ]; then
+              echo "::notice::Skipping the README SHA update because the release isn't from the default branch ($DEFAULT_BRANCH)."
+            elif [ "$LATEST" != "true" ]; then
+              echo "::notice::Skipping the README SHA update because v$VERSION isn't the Latest release."
+            fi
+          fi
+
+          {
+            echo "latest=$LATEST"
+            echo "default-branch=$DEFAULT_BRANCH"
+            echo "from-default-branch=$FROM_DEFAULT_BRANCH"
+          } >> "$GITHUB_OUTPUT"
+
+      # Tags :: ${Full}, v${Major}, v${Major}.${Minor}, v${Major}.${Minor}.${Patch}
+      - name: "GitHub Release"
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          LATEST: ${{ steps.target.outputs.latest }}
           VERSION_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}.${{ steps.version.outputs.patch }}
           MAJOR_TAG: v${{ steps.version.outputs.major }}
           MINOR_TAG: v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
@@ -110,6 +164,7 @@ jobs:
           git config user.email github-actions@github.com
 
           git tag "$VERSION_TAG" --force
+          RELEASE_SHA=$(git rev-parse "refs/tags/$VERSION_TAG^{commit}")
 
           # Only update major/minor floating tags for full releases
           if [ "$PRERELEASE" != "true" ]; then
@@ -120,13 +175,21 @@ jobs:
           git push origin "$REF_NAME"
           git push origin --tags --force
 
+          # A full release that isn't the highest version is explicitly not marked "Latest",
+          # because GitHub otherwise marks every newly published release as Latest.
+          if [ "$LATEST" = "true" ]; then
+            LATEST_FLAG="--latest"
+          else
+            LATEST_FLAG="--latest=false"
+          fi
+
           # Create or update the release (supports promotion from prerelease)
           if gh release view "$VERSION_TAG" > /dev/null 2>&1; then
             echo "Release $VERSION_TAG exists — updating"
             if [ "$PRERELEASE" = "true" ]; then
               gh release edit "$VERSION_TAG" --prerelease --title "$VERSION_TAG"
             else
-              gh release edit "$VERSION_TAG" --latest --prerelease=false --title "$VERSION_TAG"
+              gh release edit "$VERSION_TAG" "$LATEST_FLAG" --prerelease=false --title "$VERSION_TAG"
             fi
           else
             echo "Creating release $VERSION_TAG"
@@ -134,14 +197,59 @@ jobs:
             if [ "$PRERELEASE" = "true" ]; then
               RELEASE_FLAGS="$RELEASE_FLAGS --prerelease"
             else
-              RELEASE_FLAGS="$RELEASE_FLAGS --latest"
+              RELEASE_FLAGS="$RELEASE_FLAGS $LATEST_FLAG"
             fi
             gh release create $RELEASE_FLAGS "$VERSION_TAG"
           fi
 
+          {
+            echo "tag=$VERSION_TAG"
+            echo "sha=$RELEASE_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      # Overlapping runs can each decide they're the highest version before either one publishes.
+      # Serializing runs would cancel queued ones, so instead every full release ends by moving
+      # "Latest" up to the highest published release. Overlapping runs then end up correct.
+      - name: Mark the highest release as Latest
+        if: ${{ !inputs.prerelease }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in 1 2 3 4 5; do
+            # Read Latest before listing, so the list includes whatever was already Latest
+            CURRENT=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name' 2>/dev/null || true)
+            RELEASES=$(gh api --paginate "/repos/$GITHUB_REPOSITORY/releases" \
+              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$")) | "\(ltrimstr("v")) \(.)"')
+            HIGHEST=$(printf '%s\n' "$RELEASES" | sort -V -k1,1 | tail -n 1 | cut -d ' ' -f 2)
+
+            if [ -z "$HIGHEST" ] || [ "${CURRENT#v}" = "${HIGHEST#v}" ]; then
+              echo "Latest release: ${CURRENT:-none}"
+              exit 0
+            fi
+
+            # Only ever move Latest up. A higher current Latest means the list is out of date.
+            if [[ "${CURRENT#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && \
+              [ "$(printf '%s\n' "${CURRENT#v}" "${HIGHEST#v}" | sort -V | tail -n 1)" = "${CURRENT#v}" ]; then
+              echo "The release list doesn't include $CURRENT yet, so checking again"
+              sleep 3
+              continue
+            fi
+
+            echo "Marking $HIGHEST as the Latest release instead of ${CURRENT:-no release}"
+            gh release edit "$HIGHEST" --latest
+          done
+          echo "::warning::The Latest release was still changing after 5 checks. Make sure the highest release is marked as Latest."
+
   update-readme-sha:
-    needs: [resolve-version, release]
-    if: ${{ inputs.update-readme-sha && !inputs.prerelease }}
+    needs: release
+    # Only pin the README to a new Latest release that was made from the default branch
+    if: ${{ inputs.update-readme-sha && !inputs.prerelease && needs.release.outputs.latest == 'true' && needs.release.outputs.from-default-branch == 'true' }}
+    # One README update at a time, so each one reads Latest after the previous one has finished.
+    # Release jobs stay outside this group. If GitHub cancels a pending README update because
+    # another one was queued, nothing is lost: every update pins whichever release is Latest.
+    concurrency:
+      group: reusable-workflows-readme-sha-${{ github.repository }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -150,13 +258,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
         with:
-          ref: main
+          ref: ${{ needs.release.outputs.default-branch }}
 
       - name: Update README with release SHA
+        id: readme
         env:
-          VERSION_TAG: v${{ needs.resolve-version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ needs.release.outputs.default-branch }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          # The commit that was tagged, not the default branch's current HEAD
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          RELEASE_SHA=$(git rev-parse "HEAD")
+          # Pin whichever release is Latest now, because a newer release may have finished since this one
+          VERSION_TAG=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')
+          if [ "$VERSION_TAG" != "$RELEASE_TAG" ]; then
+            RELEASE_SHA=$(gh api "/repos/$GITHUB_REPOSITORY/commits/$VERSION_TAG" --jq '.sha')
+            # "ahead" or "identical" means the default branch contains the Latest release's commit
+            STATUS=$(gh api "/repos/$GITHUB_REPOSITORY/compare/$RELEASE_SHA...$DEFAULT_BRANCH" --jq '.status')
+            if [ "$STATUS" != "ahead" ] && [ "$STATUS" != "identical" ]; then
+              echo "::notice::Skipping the README SHA update because the Latest release, $VERSION_TAG, wasn't made from $DEFAULT_BRANCH."
+              exit 0
+            fi
+            echo "::notice::Pinning the README to $VERSION_TAG, which is now the Latest release, instead of $RELEASE_TAG."
+          fi
+          {
+            echo "update=true"
+            echo "tag=$VERSION_TAG"
+          } >> "$GITHUB_OUTPUT"
+
           REPO_NAME="${GITHUB_REPOSITORY}"
           echo "Release: $VERSION_TAG | SHA: $RELEASE_SHA | Repo: $REPO_NAME"
 
@@ -174,14 +303,15 @@ jobs:
           git diff README.md
 
       - name: Create Pull Request
+        if: ${{ steps.readme.outputs.update == 'true' }}
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ github.token }}
-          commit-message: "docs: update README action SHA to v${{ needs.resolve-version.outputs.version }}"
-          title: "docs: update README action SHA to v${{ needs.resolve-version.outputs.version }}"
+          commit-message: "docs: update README action SHA to ${{ steps.readme.outputs.tag }}"
+          title: "docs: update README action SHA to ${{ steps.readme.outputs.tag }}"
           branch: chore/update-readme-sha
-          base: main
+          base: ${{ needs.release.outputs.default-branch }}
           labels: documentation
           body: |
-            Automated PR to update the SHA-pinned action reference in README.md to match the latest release **v${{ needs.resolve-version.outputs.version }}**.
+            Automated PR to update the SHA-pinned action reference in README.md to match the latest release **${{ steps.readme.outputs.tag }}**.
 
