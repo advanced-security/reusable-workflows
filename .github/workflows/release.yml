@@ -81,10 +81,6 @@ jobs:
     needs: resolve-version
     runs-on: ubuntu-latest
     if: ${{ needs.resolve-version.outputs.version != '' }}
-    # One release at a time per repository, so two runs can't both decide they're the Latest release
-    concurrency:
-      group: reusable-workflows-release-${{ github.repository }}
-      cancel-in-progress: false
 
     permissions:
       contents: write
@@ -210,6 +206,39 @@ jobs:
             echo "tag=$VERSION_TAG"
             echo "sha=$RELEASE_SHA"
           } >> "$GITHUB_OUTPUT"
+
+      # Overlapping runs can each decide they're the highest version before either one publishes.
+      # Serializing runs would cancel queued ones, so instead every full release ends by moving
+      # "Latest" up to the highest published release. Overlapping runs then end up correct.
+      - name: Mark the highest release as Latest
+        if: ${{ !inputs.prerelease }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for _ in 1 2 3 4 5; do
+            # Read Latest before listing, so the list includes whatever was already Latest
+            CURRENT=$(gh api "/repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name' 2>/dev/null || true)
+            RELEASES=$(gh api --paginate "/repos/$GITHUB_REPOSITORY/releases" \
+              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name | select(test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$")) | "\(ltrimstr("v")) \(.)"')
+            HIGHEST=$(printf '%s\n' "$RELEASES" | sort -V -k1,1 | tail -n 1 | cut -d ' ' -f 2)
+
+            if [ -z "$HIGHEST" ] || [ "${CURRENT#v}" = "${HIGHEST#v}" ]; then
+              echo "Latest release: ${CURRENT:-none}"
+              exit 0
+            fi
+
+            # Only ever move Latest up. A higher current Latest means the list is out of date.
+            if [[ "${CURRENT#v}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && \
+              [ "$(printf '%s\n' "${CURRENT#v}" "${HIGHEST#v}" | sort -V | tail -n 1)" = "${CURRENT#v}" ]; then
+              echo "The release list doesn't include $CURRENT yet, so checking again"
+              sleep 3
+              continue
+            fi
+
+            echo "Marking $HIGHEST as the Latest release instead of ${CURRENT:-no release}"
+            gh release edit "$HIGHEST" --latest
+          done
+          echo "::warning::The Latest release was still changing after 5 checks. Make sure the highest release is marked as Latest."
 
   update-readme-sha:
     needs: release
