@@ -11,6 +11,6 @@ Automatically label pull requests based on the paths that were modified.
 **Simple:**
 
 ```yaml
-uses: advanced-security/reusable-workflows/.github/workflows/labeler.yml@v0.3.8
+uses: advanced-security/reusable-workflows/.github/workflows/labeler.yml@v0.3.9
 secrets: inherit
 ```
